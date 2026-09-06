@@ -1,4 +1,2 @@
-turn on camera /1e-50/
-on camera /1e-50/
-turn off camera /1e-50/
-off camera /1e-50/
+turn on camera /1e-20/
+turn off camera /1e-20/
