@@ -1,10 +1,20 @@
 #!/usr/bin/env bash
 # Downloads CMU Sphinx's en-us acoustic model and pronunciation dictionary.
 #
-# These are plain data files (not compiled binaries), so this works on any
-# architecture — needed because pip-installed pocketsphinx has no prebuilt
-# wheel for Raspberry Pi's aarch64 and its from-source build doesn't bundle
-# the model data that the wheels normally include.
+# LAST RESORT: prefer letting `pip install pocketsphinx` fetch its own
+# matched wheel first (see setup_pi.sh) - PyPI does have real aarch64 wheels
+# with correctly-paired model data. Only reach for this script if that wheel
+# isn't available for your Python version/arch and pip had to build from
+# source (which doesn't bundle model data at all).
+#
+# KNOWN ISSUE: the acoustic model here (SourceForge) and cmudict.dict here
+# (GitHub cmusphinx/cmudict) are NOT a verified matched pair - the acoustic
+# model's phone set may not include stress-marked phones (AH1, ER0, UW2,
+# etc.) that this dictionary uses for nearly every word, causing most of the
+# dictionary - including basic words - to be rejected at load time. If you
+# hit a wall of "Phone ... is missing in the acoustic model" errors, this is
+# why; you need a dictionary phone-set-matched to cmusphinx-en-us-5.2
+# specifically, not the raw GitHub cmudict.
 #
 # Usage: ./download_models.sh [output_dir]   (default: ./models)
 
