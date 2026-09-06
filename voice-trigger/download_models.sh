@@ -49,11 +49,16 @@ if ! file "cmudict.dict" | grep -qiE 'ascii|text'; then
     exit 1
 fi
 
-tar xzf "cmusphinx-en-us-5.2.tar.gz"
+EXTRACT_DIR="cmusphinx-en-us-5.2"
+if [ -d "$EXTRACT_DIR" ]; then
+    echo "already extracted to $OUT_DIR/$EXTRACT_DIR, skipping"
+else
+    tar xzf "cmusphinx-en-us-5.2.tar.gz"
+fi
 
 echo
 echo "done. Contents of $OUT_DIR:"
 ls "$OUT_DIR"
 echo
 echo "Point kws_listen.py at the extracted acoustic model directory above, e.g.:"
-echo "  python3 kws_listen.py --hmm \"$OUT_DIR/en-us\" --dict \"$OUT_DIR/cmudict.dict\""
+echo "  python3 kws_listen.py --hmm \"$OUT_DIR/$EXTRACT_DIR\" --dict \"$OUT_DIR/cmudict.dict\""
