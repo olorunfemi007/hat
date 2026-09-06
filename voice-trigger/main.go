@@ -56,6 +56,7 @@ func main() {
 
 	var mu sync.Mutex
 	var lastTrigger time.Time
+	camera := &cameraRunner{}
 
 	scanner := bufio.NewScanner(stdout)
 	for scanner.Scan() {
@@ -77,7 +78,7 @@ func main() {
 		}
 
 		log.Println("keyphrase spotted -> triggering camera")
-		triggerCamera(*cameraCmd)
+		camera.trigger(*cameraCmd)
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -97,11 +98,30 @@ func startCommand(cmdline string) (*exec.Cmd, error) {
 	return exec.Command(parts[0], parts[1:]...), nil
 }
 
-func triggerCamera(cmdline string) {
+// cameraRunner ensures at most one camera_cmd process runs at a time. This
+// matters for long-running commands (e.g. a --listen video stream that never
+// exits on its own) — without it, a repeat keyphrase trigger would try to
+// start a second instance and typically fail (e.g. "failed to bind listen
+// socket" from a port already held by the first one).
+type cameraRunner struct {
+	mu  sync.Mutex
+	cmd *exec.Cmd
+}
+
+func (c *cameraRunner) trigger(cmdline string) {
 	parts := strings.Fields(cmdline)
 	if len(parts) == 0 {
 		log.Println("camera_cmd is empty, nothing to run")
 		return
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.cmd != nil && c.cmd.Process != nil {
+		log.Println("stopping previous camera command before starting a new one")
+		_ = c.cmd.Process.Signal(syscall.SIGTERM)
+		_ = c.cmd.Wait()
 	}
 
 	cmd := exec.Command(parts[0], parts[1:]...)
@@ -112,6 +132,7 @@ func triggerCamera(cmdline string) {
 		log.Printf("failed to start camera command: %v", err)
 		return
 	}
+	c.cmd = cmd
 
 	go func() {
 		if err := cmd.Wait(); err != nil {
