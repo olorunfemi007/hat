@@ -12,7 +12,7 @@ set -euo pipefail
 
 OUT_DIR="${1:-$(dirname "$0")/models}"
 ACOUSTIC_URL="https://sourceforge.net/projects/cmusphinx/files/Acoustic%20and%20Language%20Models/US%20English/cmusphinx-en-us-5.2.tar.gz/download"
-DICT_URL="https://sourceforge.net/projects/cmusphinx/files/Acoustic%20and%20Language%20Models/US%20English/cmudict-en-us.dict/download"
+DICT_URL="https://raw.githubusercontent.com/cmusphinx/cmudict/master/cmudict.dict"
 
 mkdir -p "$OUT_DIR"
 cd "$OUT_DIR"
@@ -35,7 +35,7 @@ fetch() {
 }
 
 fetch "$ACOUSTIC_URL" "cmusphinx-en-us-5.2.tar.gz"
-fetch "$DICT_URL" "cmudict-en-us.dict"
+fetch "$DICT_URL" "cmudict.dict"
 
 if ! file "cmusphinx-en-us-5.2.tar.gz" | grep -qi gzip; then
     echo "cmusphinx-en-us-5.2.tar.gz doesn't look like a real archive (likely an HTML error page)." >&2
@@ -44,8 +44,8 @@ if ! file "cmusphinx-en-us-5.2.tar.gz" | grep -qi gzip; then
     exit 1
 fi
 
-if ! file "cmudict-en-us.dict" | grep -qiE 'ascii|text'; then
-    echo "cmudict-en-us.dict doesn't look like a real text file (likely an HTML error page)." >&2
+if ! file "cmudict.dict" | grep -qiE 'ascii|text'; then
+    echo "cmudict.dict doesn't look like a real text file (likely an HTML error page)." >&2
     exit 1
 fi
 
@@ -56,4 +56,4 @@ echo "done. Contents of $OUT_DIR:"
 ls "$OUT_DIR"
 echo
 echo "Point kws_listen.py at the extracted acoustic model directory above, e.g.:"
-echo "  python3 kws_listen.py --hmm \"$OUT_DIR/en-us\" --dict \"$OUT_DIR/cmudict-en-us.dict\""
+echo "  python3 kws_listen.py --hmm \"$OUT_DIR/en-us\" --dict \"$OUT_DIR/cmudict.dict\""
