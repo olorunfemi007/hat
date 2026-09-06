@@ -8,9 +8,13 @@ before wiring the behavior into the actual edge agent.
 
 ## Files
 
-- `main.go` — the program. Shells out to `pocketsphinx_continuous`, watches
-  its stdout, and runs `-camera_cmd` on every spotted line (debounced by
-  `-cooldown`, default 3s).
+- `main.go` — the program. Shells out to `-listen_cmd` (default:
+  `python3 kws_listen.py`), watches its stdout, and runs `-camera_cmd` on
+  every spotted line (debounced by `-cooldown`, default 3s). It has no idea
+  what CLI flags the listener itself uses — that's deliberate, so swapping
+  STT backends later doesn't require touching Go code again.
+- `kws_listen.py` — thin wrapper around pocketsphinx's `LiveSpeech`, printing
+  one flushed line per spotted keyphrase.
 - `keyword.list` — PocketSphinx keyword-spotting list. Default entry:
   `turn on camera /1e-40/`. The threshold controls sensitivity — a more
   negative exponent (e.g. `1e-50`) triggers more easily but with more false
@@ -20,25 +24,32 @@ before wiring the behavior into the actual edge agent.
 
 ## Running on Raspberry Pi OS Lite (headless, over SSH)
 
-### 1. Update and install build essentials + PocketSphinx
+### 1. Install PocketSphinx (via pip, not apt)
+
+`pocketsphinx-utils` / `pocketsphinx_continuous` were dropped from Debian's
+repos on newer releases (Bookworm+ only ships the library, not the CLI), so
+apt won't get you a working keyword spotter there. Use the pip package
+instead, which is actively maintained and bundles its own model files:
 
 ```bash
 sudo apt update && sudo apt full-upgrade -y
-sudo apt install -y build-essential git \
-    pocketsphinx pocketsphinx-utils libpocketsphinx-dev libsphinxbase-dev \
-    libasound2-dev alsa-utils
+sudo apt install -y build-essential git python3-pip python3-venv portaudio19-dev
+
+python3 -m venv ~/voice-trigger-venv
+source ~/voice-trigger-venv/bin/activate
+pip install pocketsphinx pyaudio
 ```
 
-Confirm what CLI you actually got — this varies by Debian release:
+(Raspberry Pi OS Bookworm's system Python blocks plain `pip install` outside
+a venv — the venv above is the clean way around that.)
+
+Sanity-check it on its own before involving Go at all:
 
 ```bash
-pocketsphinx_continuous -h 2>&1 | grep -E 'inmic|kws'
+python3 ~/voice-trigger/kws_listen.py
 ```
-
-If nothing prints, that binary isn't available on this image. The program
-expects the classic `pocketsphinx_continuous -inmic yes -kws <file>`
-interface; if apt gave you the newer Python-first `pocketsphinx` CLI instead,
-`main.go` needs its default binary name and args adjusted to match.
+Say "turn on camera" — you should see it printed back to the terminal.
+Ctrl-C to stop.
 
 ### 2. Install Go
 
@@ -91,20 +102,23 @@ scp -r /Users/femi/dev/hardhat/voice-trigger pi@<pi-ip>:~/
 cd ~/voice-trigger
 go build -o voice-trigger .
 
-# sanity-check detection first, without touching the camera
-./voice-trigger -camera_cmd "echo CAMERA TRIGGERED"
+# sanity-check detection first, without touching the camera.
+# Point -listen_cmd at the venv's python so it can see the pip-installed packages.
+./voice-trigger \
+    -listen_cmd "$HOME/voice-trigger-venv/bin/python3 kws_listen.py" \
+    -camera_cmd "echo CAMERA TRIGGERED"
 ```
 
 Say "turn on camera" into the mic and watch for `spotted: ...` in the log.
-Once detection is reliable, drop the override to use the real `libcamera-vid`
-default, or point `-camera_cmd` at your own capture command.
+Once detection is reliable, drop the `-camera_cmd` override to use the real
+`libcamera-vid` default, or point it at your own capture command.
 
 ### 7. Keep it running past your SSH session (optional)
 
 ```bash
 sudo apt install -y tmux
 tmux new -s voicetrigger
-./voice-trigger
+./voice-trigger -listen_cmd "$HOME/voice-trigger-venv/bin/python3 kws_listen.py"
 # Ctrl-b then d to detach; `tmux attach -t voicetrigger` to reattach
 ```
 
@@ -115,12 +129,12 @@ systemd service instead — not set up yet, ask if you want it added.
 
 | Flag | Default | Purpose |
 |---|---|---|
-| `-kws_file` | `keyword.list` | PocketSphinx keyword-spotting list file |
-| `-pocketsphinx_bin` | `pocketsphinx_continuous` | Path to the PocketSphinx binary |
-| `-hmm` | (built-in en-us model) | Optional path to an acoustic model directory |
-| `-dict` | (none) | Optional path to a pronunciation dictionary |
+| `-listen_cmd` | `python3 kws_listen.py` | Command whose stdout prints one line per spotted keyphrase |
 | `-camera_cmd` | `libcamera-vid -t 10000 -o /home/pi/clip.h264` | Command to run when the keyphrase is spotted |
 | `-cooldown` | `3s` | Minimum time between triggers |
+
+`kws_listen.py` itself takes `--kws <path>` (default: `keyword.list` next to
+the script) if you want to point it at a different keyword list.
 
 ## Known limitations
 

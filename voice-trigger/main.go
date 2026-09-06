@@ -1,9 +1,14 @@
-// voice-trigger is a standalone test program: it runs pocketsphinx_continuous
-// in keyword-spotting mode against the microphone and runs a shell command
-// (default: a short libcamera-vid capture) whenever the keyphrase is spotted.
-// It has no dependency on the rest of the hard-hat agent — it's meant for
-// bench-testing mic + wake-phrase + camera on the Raspberry Pi before wiring
-// this into the real edge agent.
+// voice-trigger is a standalone test program: it runs a keyword-spotting
+// subprocess (default: kws_listen.py, a pocketsphinx LiveSpeech wrapper)
+// against the microphone, and runs a shell command (default: a short
+// libcamera-vid capture) each time it prints a spotted line. It has no
+// dependency on the rest of the hard-hat agent — it's meant for bench-testing
+// mic + wake-phrase + camera on the Raspberry Pi before wiring this into the
+// real edge agent.
+//
+// The listener backend is intentionally just a command line (-listen_cmd),
+// not something main.go knows the flags of — that keeps this program working
+// no matter which STT engine or CLI ends up available on a given OS image.
 package main
 
 import (
@@ -20,35 +25,23 @@ import (
 )
 
 func main() {
-	kwsFile := flag.String("kws_file", "keyword.list", "PocketSphinx keyword-spotting list file (KEYPHRASE /THRESHOLD/ per line)")
-	sphinxBin := flag.String("pocketsphinx_bin", "pocketsphinx_continuous", "Path to the pocketsphinx_continuous binary")
-	hmm := flag.String("hmm", "", "Optional path to an acoustic model directory (default: pocketsphinx's built-in en-us model)")
-	dict := flag.String("dict", "", "Optional path to a pronunciation dictionary")
+	listenCmd := flag.String("listen_cmd", "python3 kws_listen.py", "Command whose stdout prints one line per spotted keyphrase")
 	cameraCmd := flag.String("camera_cmd", "libcamera-vid -t 10000 -o /home/pi/clip.h264", "Shell command to run when the keyphrase is spotted")
 	cooldown := flag.Duration("cooldown", 3*time.Second, "Minimum time between triggers, to ignore repeat detections from the same utterance")
 	flag.Parse()
 
-	if _, err := os.Stat(*kwsFile); err != nil {
-		log.Fatalf("keyword list file %q not found: %v", *kwsFile, err)
+	cmd, err := startCommand(*listenCmd)
+	if err != nil {
+		log.Fatalf("failed to start listen_cmd %q: %v", *listenCmd, err)
 	}
-
-	args := []string{"-inmic", "yes", "-kws", *kwsFile}
-	if *hmm != "" {
-		args = append(args, "-hmm", *hmm)
-	}
-	if *dict != "" {
-		args = append(args, "-dict", *dict)
-	}
-
-	cmd := exec.Command(*sphinxBin, args...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		log.Fatalf("failed to attach stdout pipe: %v", err)
 	}
-	cmd.Stderr = os.Stderr // pocketsphinx's own logging; useful for debugging mic/model issues
+	cmd.Stderr = os.Stderr // the listener's own logging; useful for debugging mic/model issues
 
 	if err := cmd.Start(); err != nil {
-		log.Fatalf("failed to start %s: %v (is pocketsphinx installed and on PATH?)", *sphinxBin, err)
+		log.Fatalf("failed to start %q: %v", *listenCmd, err)
 	}
 
 	sig := make(chan os.Signal, 1)
@@ -92,6 +85,16 @@ func main() {
 	}
 
 	_ = cmd.Wait()
+}
+
+// startCommand builds an *exec.Cmd from a space-separated command line
+// without starting it yet, so the caller can wire up pipes first.
+func startCommand(cmdline string) (*exec.Cmd, error) {
+	parts := strings.Fields(cmdline)
+	if len(parts) == 0 {
+		return nil, os.ErrInvalid
+	}
+	return exec.Command(parts[0], parts[1:]...), nil
 }
 
 func triggerCamera(cmdline string) {
