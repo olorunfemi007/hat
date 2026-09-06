@@ -4,6 +4,12 @@
 Prints one line to stdout, flushed immediately, each time the keyphrase list
 is matched. Meant to be run as a subprocess of voice-trigger's main.go, but
 can be run standalone too: `python3 kws_listen.py`.
+
+On platforms with no prebuilt PyPI wheel (e.g. Raspberry Pi's aarch64),
+`pip install pocketsphinx` builds from source and does NOT bundle the
+acoustic model data (that's only included in the prebuilt wheels). In that
+case pass --hmm and --dict explicitly, pointing at manually downloaded CMU
+Sphinx model files, instead of relying on get_model_path().
 """
 import argparse
 import os
@@ -20,6 +26,17 @@ def main():
         help="Path to the keyword-spotting list file (KEYPHRASE /THRESHOLD/ per line)",
     )
     parser.add_argument(
+        "--hmm",
+        default=None,
+        help="Path to the acoustic model directory. Default: <get_model_path()>/en-us",
+    )
+    parser.add_argument(
+        "--dict",
+        dest="dict_path",
+        default=None,
+        help="Path to the pronunciation dictionary. Default: <get_model_path()>/cmudict-en-us.dict",
+    )
+    parser.add_argument(
         "--verbose",
         action="store_true",
         help="Have pocketsphinx log its own diagnostics to stderr instead of a hidden log file",
@@ -30,22 +47,20 @@ def main():
         sys.exit(f"keyword list file not found: {args.kws}")
 
     model_path = get_model_path()
-    hmm_dir = os.path.join(model_path, "en-us")
-    dict_path = os.path.join(model_path, "cmudict-en-us.dict")
+    hmm_dir = args.hmm or os.path.join(model_path, "en-us")
+    dict_path = args.dict_path or os.path.join(model_path, "cmudict-en-us.dict")
 
-    print(f"model_path: {model_path}", file=sys.stderr)
-    for label, p in (("hmm", hmm_dir), ("dict", dict_path)):
-        print(f"  {label}: {p} ({'exists' if os.path.exists(p) else 'MISSING'})", file=sys.stderr)
+    print(f"hmm:  {hmm_dir} ({'exists' if os.path.isdir(hmm_dir) else 'MISSING'})", file=sys.stderr)
+    print(f"dict: {dict_path} ({'exists' if os.path.isfile(dict_path) else 'MISSING'})", file=sys.stderr)
     if os.path.isdir(hmm_dir):
-        print(f"  hmm contents: {sorted(os.listdir(hmm_dir))}", file=sys.stderr)
+        print(f"hmm contents: {sorted(os.listdir(hmm_dir))}", file=sys.stderr)
 
     if not os.path.isdir(hmm_dir) or not os.path.isfile(dict_path):
         sys.exit(
-            "pocketsphinx's bundled model files are missing under get_model_path(). "
-            "This is a known issue when pip has to build pocketsphinx from source "
-            "(no prebuilt wheel for your Python version) — the model data sometimes "
-            "isn't included in that build. Try creating the venv with an older "
-            "interpreter (e.g. python3.11) so pip can use a prebuilt wheel instead."
+            "Model files not found at the paths above. If pip built pocketsphinx from "
+            "source (no prebuilt wheel for this platform), get_model_path() won't have "
+            "real data — download CMU Sphinx's en-us acoustic model and dictionary "
+            "manually and pass --hmm/--dict pointing at them."
         )
 
     speech = LiveSpeech(
