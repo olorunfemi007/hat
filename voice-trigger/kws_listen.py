@@ -26,6 +26,17 @@ from pocketsphinx import LiveSpeech, get_model_path
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
+        "--list_devices",
+        action="store_true",
+        help="List audio input devices (via sounddevice) and exit",
+    )
+    parser.add_argument(
+        "--device",
+        default=None,
+        help="Audio input device index or name substring (see --list_devices). "
+        "Default: system default, which may not exist/work on a headless Pi.",
+    )
+    parser.add_argument(
         "--kws",
         default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "keyword.list"),
         help="Path to the keyword-spotting list file (KEYPHRASE /THRESHOLD/ per line)",
@@ -48,8 +59,18 @@ def main():
     )
     args = parser.parse_args()
 
+    if args.list_devices:
+        import sounddevice
+
+        print(sounddevice.query_devices())
+        return
+
     if not os.path.isfile(args.kws):
         sys.exit(f"keyword list file not found: {args.kws}")
+
+    device = args.device
+    if device is not None and device.isdigit():
+        device = int(device)
 
     model_path = get_model_path()
     hmm_dir = args.hmm or os.path.join(model_path, "en-us", "en-us")
@@ -78,6 +99,7 @@ def main():
         lm=False,
         dic=dict_path,
         kws=args.kws,
+        audio_device=device,
     )
 
     for phrase in speech:
