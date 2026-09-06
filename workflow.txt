@@ -1,0 +1,1231 @@
+As you know, I've been trying to do a project of a hard hat that has camera, humidity sensors, microphone, and fan. If I was to send all those metrics to a system, let's say, like a system that, or a storage that a lot of companies use. Some sort of cloud storage that a lot of companies use, or even maybe on-prem storage. How would I build, or how would the workflow of the system be for the software that will be very generic for storage solution for any company that will be using such a hard hat with camera. So all the metrics, like videos and every other thing needs to be saved in a sort of storage. What sort of software solution can I develop or can I use that would solve that? And how would I, because I'm using a Raspberry Pi, how would I create an easy interface that each company, when they're buying a new hat, can onboard the hat to their own systems. So that means their own storage solution and whatnot. And it should be without the hard hat itself having a screen. How would they be able to onboard the hat, like connect to the Wi‑Fi and things like that without having a screen on the hat itself?
+
+What you are really building is not just a hard hat — it is an IoT/edge platform. The Raspberry Pi hat should be treated as an edge device, while the software platform handles device onboarding, telemetry, video/audio ingestion, storage routing, security, and fleet management.
+
+The architecture I would use looks like this:
+
+                  HARD HAT / RASPBERRY PI
+        ┌──────────────────────────────────────┐
+        │ Camera       Humidity      Temp      │
+        │ Microphone   Fan Status    Battery   │
+        │                                      │
+        │        Hard Hat Edge Agent           │
+        │                                      │
+        │  Sensor Collector                    │
+        │  Camera/Audio Recorder               │
+        │  Local Buffer                        │
+        │  MQTT Client                         │
+        │  Upload Client                       │
+        │  Wi-Fi/Bluetooth Provisioning        │
+        └───────────────┬──────────────────────┘
+                        │
+                 Wi-Fi / LTE / 5G
+                        │
+                        ▼
+        ┌──────────────────────────────────────┐
+        │       YOUR INGESTION GATEWAY         │
+        │                                      │
+        │  Device Authentication               │
+        │  Device Registry                     │
+        │  MQTT / HTTPS API                    │
+        │  Upload Authorization                │
+        │  Configuration Management            │
+        └──────────────┬───────────────────────┘
+                       │
+             ┌─────────┴──────────┐
+             │                    │
+             ▼                    ▼
+      Telemetry Pipeline       Media Pipeline
+      humidity                  video
+      temperature               images
+      fan RPM                   audio
+      battery                   recordings
+             │                    │
+             ▼                    ▼
+      Database / TSDB          Object Storage
+                              
+      PostgreSQL              AWS S3
+      TimescaleDB             Azure Blob
+      ClickHouse              Google Cloud Storage
+                              MinIO / Ceph
+                              on-prem S3
+                              NAS
+
+The important architectural decision is this: do not make the Raspberry Pi understand AWS, Azure, MinIO, GCP and every customer's storage system.
+
+Make the hat understand your protocol. Your platform then understands the different customer environments.
+
+1. The software you should actually build
+
+I would call the software running on the Pi something like the Hard Hat Edge Agent.
+
+It could be written in Go, Rust, or Python. Given your infrastructure background, I'd strongly consider Go because you can distribute one binary, it is lightweight, handles concurrency well and is good for long-running device agents.
+
+Its internal structure could look like:
+
+hardhat-agent
+
+├── provisioning
+│   ├── wifi
+│   ├── bluetooth
+│   └── device-identity
+│
+├── sensors
+│   ├── humidity
+│   ├── temperature
+│   ├── fan
+│   └── battery
+│
+├── camera
+│   ├── capture
+│   ├── encoding
+│   └── segmentation
+│
+├── audio
+│   ├── capture
+│   └── encoding
+│
+├── telemetry
+│   └── mqtt
+│
+├── upload
+│   └── https
+│
+├── buffer
+│   └── local-storage
+│
+├── config
+│
+└── updater
+
+Then the customer doesn't care whether you change camera hardware, humidity sensors, Raspberry Pi versions, or cloud providers.
+
+2. Don't send video through the same pipeline as sensor metrics
+
+This is an important distinction.
+
+Humidity might generate a message like:
+
+{
+  "device_id": "HAT-A73F92",
+  "timestamp": "2026-09-05T15:32:10Z",
+  "humidity": 74.2,
+  "temperature": 31.4,
+  "fan_rpm": 2200,
+  "battery": 71
+}
+
+That is tiny.
+
+Send those messages using something like:
+
+MQTT over TLS
+
+MQTT is extremely common for IoT devices and Azure IoT and AWS IoT both support MQTT-based device communication/provisioning. AWS IoT, for example, supports device certificate provisioning through MQTT; Azure's Device Provisioning Service is specifically designed for zero-touch IoT provisioning at scale.
+
+But video is different.
+
+You don't want:
+
+Camera
+  ↓
+MQTT
+  ↓
+10 GB video
+
+Instead:
+
+Camera
+   ↓
+H.264/H.265 encoding
+   ↓
+30–60 second segments
+   ↓
+local disk buffer
+   ↓
+HTTPS upload
+   ↓
+Object Storage
+
+So your system has two data planes.
+
+                 Hard Hat
+                    │
+           ┌────────┴────────┐
+           │                 │
+     TELEMETRY PLANE     MEDIA PLANE
+           │                 │
+          MQTT             HTTPS
+           │                 │
+       MQTT broker        Object store
+           │
+      stream processor
+           │
+        database
+3. Make S3 your primary storage abstraction
+
+This would probably be one of the most important decisions for making your product generic.
+
+Build an interface internally like:
+
+type ObjectStore interface {
+    PutObject(...)
+    GetObject(...)
+    DeleteObject(...)
+    GenerateUploadURL(...)
+}
+
+Then implementations:
+
+S3Storage
+AzureBlobStorage
+GCSStorage
+MinIOStorage
+NFSStorage
+
+But make S3-compatible storage your preferred interface.
+
+That immediately gives you compatibility with things such as:
+
+AWS S3
+MinIO
+Ceph
+Cloudflare R2
+Wasabi
+many enterprise object-storage systems
+
+For AWS S3 specifically, presigned URLs allow a device to upload an object without giving the device the customer's AWS credentials.
+
+That is exactly the pattern I would use.
+
+4. Never put customer cloud credentials on the hard hat
+
+Suppose Company A uses AWS.
+
+You should not put:
+
+AWS_ACCESS_KEY_ID
+AWS_SECRET_ACCESS_KEY
+
+on every Raspberry Pi.
+
+Instead:
+
+Hard Hat
+
+"Hey backend, I have:
+ video-20260905-153200.mp4
+ 82 MB"
+
+       ↓
+
+Your Gateway
+
+       ↓
+
+Customer's S3 configuration
+
+       ↓
+
+Generate temporary upload URL
+
+       ↓
+
+Hard Hat receives:
+https://company-bucket.s3...signed...
+
+       ↓
+
+Hard Hat uploads directly to S3
+
+The signed URL expires shortly afterwards.
+
+The device never learns the AWS credentials. AWS explicitly supports this pattern for uploads using time-limited presigned URLs.
+
+Now your backend also doesn't have to proxy enormous quantities of video.
+
+That is a big scalability advantage.
+
+5. Your customer configuration becomes extremely simple
+
+Imagine Caterpillar buys 5,000 helmets from you.
+
+Their administrator logs into:
+
+admin.yourhardhat.com
+
+and creates:
+
+Organization
+
+Name:
+Caterpillar
+
+Storage Provider:
+AWS S3
+
+Bucket:
+caterpillar-worker-safety
+
+Region:
+us-east-1
+
+Path:
+hardhats/
+
+Telemetry:
+Customer PostgreSQL
+
+Retention:
+90 days
+
+Another customer could configure:
+
+Organization:
+MiningCorp
+
+Storage:
+MinIO
+
+Endpoint:
+https://objects.internal.miningcorp.com
+
+Bucket:
+helmet-data
+
+Telemetry:
+TimescaleDB
+
+Another:
+
+Organization:
+ConstructionCo
+
+Storage:
+Azure Blob Storage
+
+Your hat doesn't change.
+
+6. No-screen Wi-Fi onboarding
+
+This is where I would make the experience similar to setting up a Chromecast, Ring camera or smart appliance.
+
+Every helmet has a QR code:
+
+┌───────────────────┐
+│ SMART HARD HAT    │
+│                   │
+│     █████████     │
+│     ██ QR ██      │
+│     █████████     │
+│                   │
+│ HAT-A73F92        │
+└───────────────────┘
+
+The QR code could contain:
+
+https://setup.yourcompany.com/HAT-A73F92?claim=...
+
+There are two good onboarding mechanisms.
+
+Option A — Temporary Wi-Fi hotspot
+
+This is probably the easiest Raspberry Pi MVP.
+
+When unconfigured, the Pi broadcasts:
+
+Wi-Fi:
+
+HardHat-A73F92
+
+The customer presses a button on the helmet for perhaps five seconds.
+
+The Pi enters:
+
+SETUP MODE
+
+The administrator connects their phone to:
+
+HardHat-A73F92
+
+and a captive portal appears:
+
+Welcome to Smart Hard Hat
+
+Device:
+HAT-A73F92
+
+Select Wi-Fi:
+
+○ Construction-WiFi
+○ Site-Employees
+○ Site-IoT
+○ Other
+
+Password:
+[ **************** ]
+
+        Connect
+
+The browser is actually talking directly to a tiny HTTP server running on the Raspberry Pi.
+
+Something like:
+
+Phone
+  │
+ WiFi
+  │
+  ▼
+Raspberry Pi Access Point
+  │
+  ▼
+http://192.168.4.1
+  │
+  ▼
+Hard Hat Setup Service
+
+Once Wi-Fi succeeds:
+
+Pi saves credentials securely
+        ↓
+stops hotspot
+        ↓
+joins company Wi-Fi
+        ↓
+contacts provisioning service
+
+No screen required.
+
+7. Bluetooth is even cleaner
+
+Your production version could use Bluetooth Low Energy.
+
+The customer scans the QR code from your mobile app/web experience.
+
+Phone
+     ↓ Bluetooth
+Hard Hat
+     ↓
+Phone sends:
+   Wi-Fi SSID
+   Wi-Fi password
+   organization enrollment token
+
+Then:
+
+Hard Hat
+     ↓ Wi-Fi
+Internet
+     ↓
+Provisioning Service
+
+I would probably support both eventually:
+
+BLE → preferred
+
+Wi-Fi AP → fallback
+
+That makes deployment considerably easier in industrial environments.
+
+8. Device identity should exist before the helmet reaches the customer
+
+Every helmet you manufacture should get something like:
+
+Serial:
+HAT-A73F92
+
+Device UUID:
+a870efe1...
+
+Private key:
+-----BEGIN PRIVATE KEY-----
+
+Certificate:
+-----BEGIN CERTIFICATE-----
+
+The private key ideally lives in a secure hardware element rather than simply /etc/hardhat/private.key.
+
+Then your database already knows:
+
+HAT-A73F92
+manufactured: 2026-09-03
+status: UNCLAIMED
+
+When Caterpillar receives the helmet:
+
+Scan QR
+   ↓
+Claim HAT-A73F92
+   ↓
+Associate with Caterpillar tenant
+   ↓
+device authenticates
+   ↓
+certificate validated
+   ↓
+HAT-A73F92 becomes ACTIVE
+
+This is very similar conceptually to fleet-provisioning systems provided by AWS IoT and Azure IoT DPS. AWS supports provisioning devices with X.509 certificates, and Azure DPS supports X.509, symmetric-key and TPM-based attestation.
+
+9. The entire onboarding workflow
+
+The experience I would target is literally:
+
+1. Company receives helmet.
+
+               ↓
+
+2. Administrator scans QR code.
+
+               ↓
+
+3. Opens:
+
+   setup.hardhat.io/HAT-A73F92
+
+               ↓
+
+4. Logs into company account.
+
+               ↓
+
+5. "Add this helmet to Acme Construction?"
+
+       [ Add Helmet ]
+
+               ↓
+
+6. Press helmet button for 5 seconds.
+
+               ↓
+
+7. Phone discovers helmet via BLE
+   OR connects to HardHat-A73F92 Wi-Fi.
+
+               ↓
+
+8. Administrator selects site Wi-Fi.
+
+   Site-IoT
+   ************
+
+               ↓
+
+9. Credentials transferred locally.
+
+               ↓
+
+10. Helmet joins Wi-Fi.
+
+               ↓
+
+11. Helmet authenticates using
+    factory device certificate.
+
+               ↓
+
+12. Provisioning server responds:
+
+    tenant_id
+    mqtt_endpoint
+    API endpoint
+    sampling configuration
+    certificate/configuration
+
+               ↓
+
+13. Helmet starts reporting.
+
+               ↓
+
+       "HAT-A73F92 ONLINE"
+
+That is the experience I would design toward.
+
+10. What happens during normal operation
+
+After onboarding:
+
+Humidity sensor
+       ↓
+Hard Hat Agent
+       ↓
+MQTT
+       ↓
+IoT Gateway
+       ↓
+Kafka / NATS / MQTT
+       ↓
+TimescaleDB
+
+Meanwhile:
+
+Camera
+  ↓
+H.265
+  ↓
+60-second MP4
+  ↓
+local buffer
+  ↓
+request upload URL
+  ↓
+S3 signed URL
+  ↓
+customer storage
+
+Your database doesn't need to contain the video.
+
+Instead:
+
+event_id: 572739
+device_id: HAT-A73F92
+worker_id: optional
+timestamp: ...
+humidity: 83%
+video:
+
+s3://helmet-data/HAT-A73F92/2026/09/05/15-32.mp4
+11. Local buffering is extremely important
+
+Construction sites and mines will lose Wi-Fi.
+
+The helmet therefore needs an edge queue.
+
+For example:
+
+                 Internet available
+                       │
+                       ▼
+Sensor → Agent → Upload
+
+                 Internet unavailable
+                       │
+                       ▼
+Sensor → Agent → local SQLite / disk
+
+                       │
+                  Wi-Fi returns
+                       │
+                       ▼
+                 Retry uploader
+                       │
+                       ▼
+                     Cloud
+
+The Pi could have:
+
+64–256 GB SD / NVMe
+
+and maintain a queue:
+
+pending/
+uploading/
+uploaded/
+failed/
+
+Telemetry could sit in SQLite until acknowledged.
+
+Video could stay on disk until uploaded.
+
+This means losing Wi-Fi doesn't mean losing evidence.
+
+12. Make your platform multi-tenant
+
+Your server-side architecture could eventually become:
+
+                       YOUR PLATFORM
+                            │
+           ┌────────────────┼────────────────┐
+           │                │                │
+       Company A        Company B        Company C
+           │                │                │
+          AWS             Azure          On-Prem
+           │                │                │
+          S3              Blob           MinIO
+
+Every API request is associated with:
+
+tenant_id
+device_id
+site_id
+
+For example:
+
+tenant:
+  acme
+
+site:
+  new-york-project-14
+
+helmet:
+  HAT-A73F92
+
+worker:
+  optional
+
+sensor:
+  humidity
+
+That gives you a commercial SaaS product rather than custom software for every customer.
+
+13. Some companies will refuse to send data to your cloud
+
+And this is where your architecture becomes particularly valuable.
+
+You can sell two modes.
+
+Your SaaS
+Hard Hat
+   ↓
+Your Cloud
+   ↓
+Customer Storage
+
+Easy for most companies.
+
+Enterprise / on-prem
+
+Give them something like:
+
+hardhat-gateway
+
+that they deploy as a container:
+
+docker run yourcompany/hardhat-gateway
+
+or:
+
+Kubernetes
+    │
+    └── hardhat-gateway
+
+Then:
+
+Hard Hat
+   ↓
+Company LAN
+   ↓
+HardHat Gateway
+   ↓
+Company MinIO / S3 / Ceph / NAS
+
+Nothing ever has to leave their network.
+
+Considering the type of Kubernetes/platform work you've already been doing, this part would fit naturally with your skillset.
+
+14. I would therefore make these your core products
+
+Instead of thinking:
+
+"How do I store my hard-hat data?"
+
+I'd define the product as:
+
+             SMART HARD HAT PLATFORM
+
+1. Hard Hat Hardware
+
+2. Hard Hat Edge Agent
+   Raspberry Pi software
+
+3. Hard Hat Gateway
+   Device/API/MQTT ingestion
+
+4. Hard Hat Provisioning Service
+   onboarding + certificates
+
+5. Hard Hat Storage Adapter
+   S3/Azure/GCS/MinIO/on-prem
+
+6. Hard Hat Management Portal
+   fleet management
+
+7. Hard Hat Analytics/Safety Platform
+   dashboards + alerts + AI
+
+Then the helmet is simply one edge client of your platform.
+
+15. A practical MVP
+
+I wouldn't start with Kafka, Kubernetes, five clouds and every enterprise database.
+
+Build version 1 as:
+
+Raspberry Pi
+│
+├── Go/Python HardHat Agent
+├── Camera
+├── Humidity sensor
+├── Microphone
+├── Fan controller
+├── SQLite local queue
+└── Wi-Fi AP setup
+        │
+        ↓
+Internet
+        │
+        ▼
+┌─────────────────────────┐
+│ HardHat API             │
+│ FastAPI or Go           │
+│                         │
+│ MQTT Broker: Mosquitto  │
+│ PostgreSQL              │
+│ S3/MinIO                │
+└─────────────────────────┘
+
+Run MinIO locally during development.
+
+Then your development architecture becomes:
+
+Pi
+ ↓
+MQTT
+ ↓
+Mosquitto
+ ↓
+Backend
+ ↓
+PostgreSQL
+
+Pi
+ ↓
+presigned URL
+ ↓
+MinIO
+
+When you're ready to demonstrate it in AWS:
+
+MinIO → S3
+
+and almost none of your device logic needs to change.
+
+And this leads to something more interesting
+
+Once you have this infrastructure, the product isn't really about collecting humidity.
+
+You now have an edge-computing platform sitting on someone's head:
+
+Camera
+Microphone
+Environmental sensors
+Motion sensors
+Connectivity
+Compute
+Identity
+
+That means you can eventually add:
+
+PPE detection
+fall detection
+heat-stress warnings
+danger-zone detection
+equipment proximity warnings
+worker-down detection
+gas detection
+noise exposure
+computer vision
+voice assistance
+incident replay
+site digital twins
+
+And critically, a lot of those detections can happen on the Raspberry Pi, meaning you don't necessarily have to upload continuous video. You can upload the event, metadata, and perhaps 30 seconds around the incident. That reduces bandwidth, cloud storage cost, and privacy exposure considerably.
+
+So the architecture I would build around your idea is Edge Agent → Provisioning/Identity → MQTT telemetry + direct object uploads → customer-configurable storage adapters → customer dashboard, with BLE/temporary Wi-Fi AP + QR-code claiming solving your screenless onboarding problem.
+
+That gives you one helmet image/software build that can potentially work for a small construction company using AWS all the way up to an enterprise insisting that every byte remain inside its own data center.
+
+Sources
+
+Which audio response do you prefer?
+
+Help improve Voice in your region
+
+Both are bad
+For the login into company account. How would that look like?
+
+The cleanest setup is to make the company account belong to your platform, not to the hard hat itself.
+
+A company admin would go to something like portal.yourhardhat.com, create an organization, and then invite other admins or site managers. For enterprise customers, you should also support SSO later.
+
+The flow would look like this:
+
+Company admin
+   ↓
+portal.yourhardhat.com
+   ↓
+Login
+
+Email:
+admin@acmeconstruction.com
+
+Password:
+************
+
+[ Sign in ]
+
+or
+
+[ Sign in with Microsoft ]
+[ Sign in with Google ]
+[ Sign in with Okta ]
+
+After login:
+
+Acme Construction
+────────────────────────
+
+Sites
+Devices
+Workers
+Storage
+Alerts
+Settings
+
+Devices
+
+HAT-001   Online
+HAT-002   Online
+HAT-003   Offline
+
+[ + Add Hard Hat ]
+
+When they click Add Hard Hat, you can give them two options:
+
+Add a Hard Hat
+
+[ Scan QR Code ]
+
+or
+
+Enter Device Code:
+
+HAT-A73F92
+Claim Code:
+8274-3921
+
+Then your backend checks:
+
+Is HAT-A73F92 a valid manufactured device?
+        ↓
+YES
+
+Has someone already claimed it?
+        ↓
+NO
+
+Is claim code valid?
+        ↓
+YES
+
+Then show:
+
+Add HAT-A73F92 to:
+
+Organization:
+Acme Construction
+
+Site:
+[ Downtown Tower ▼ ]
+
+Device Name:
+[ Tower 1 - Hat 12 ]
+
+[ Claim Device ]
+
+Once they click Claim Device, your database changes from:
+
+HAT-A73F92
+
+tenant_id: NULL
+status: UNCLAIMED
+
+to:
+
+HAT-A73F92
+
+tenant_id: acme-construction
+site_id: downtown-tower
+status: ACTIVE
+
+From that point forward, that physical helmet belongs to that company account.
+
+The important part is that logging into the company account and connecting the helmet to Wi-Fi are two different things.
+
+The phone is doing both jobs:
+
+                    INTERNET
+                        │
+Phone ───────────────→ Your Platform
+ │                      │
+ │ User logs in         │
+ │ as Acme Admin        │
+ │                      │
+ └──── Bluetooth ───────┤
+           ↓             │
+       Hard Hat          │
+
+So imagine the onboarding experience.
+
+The admin scans the QR code on the helmet. Their browser opens:
+
+setup.yourhardhat.com/claim/HAT-A73F92
+
+Because they're not logged in:
+
+Smart Hard Hat
+
+You're setting up:
+
+HAT-A73F92
+
+Please sign in to continue.
+
+[ Sign in with Microsoft ]
+
+[ Sign in with Google ]
+
+[ Email & Password ]
+
+They sign in.
+
+Your server knows:
+
+User:
+john@acme.com
+
+Organization:
+Acme Construction
+
+Role:
+Device Administrator
+
+Now:
+
+HAT-A73F92
+
+Add this device to:
+
+Acme Construction
+
+Site:
+[ Orlando Construction Site ▼ ]
+
+[ Continue ]
+
+Then comes the Wi-Fi portion:
+
+Connect Hard Hat
+
+1. Hold the setup button
+   on the helmet for 5 seconds.
+
+2. Bluetooth detected:
+
+   HardHat-A73F92 ✓
+
+[ Continue ]
+
+Then:
+
+Choose helmet Wi-Fi
+
+Network:
+[ ACME-IOT ▼ ]
+
+Password:
+[ ************* ]
+
+[ Connect ]
+
+The browser/app sends those credentials directly from the phone to the Raspberry Pi over Bluetooth.
+
+The Wi-Fi password doesn't need to pass through your cloud.
+
+Then:
+
+Phone
+ │
+ │ BLE
+ ▼
+Raspberry Pi
+
+SSID = ACME-IOT
+Password = ********
+
+The Pi connects:
+
+Hard Hat
+   ↓
+ACME-IOT
+   ↓
+Internet
+   ↓
+api.yourhardhat.com
+
+And identifies itself using its device certificate:
+
+"I'm device HAT-A73F92"
+
+Certificate:
+XYZ...
+
+Your server:
+✓ certificate valid
+✓ device claimed by Acme
+✓ device enabled
+
+The admin sees:
+
+Setup Complete ✓
+
+HAT-A73F92
+
+Organization:
+Acme Construction
+
+Site:
+Orlando Construction Site
+
+Wi-Fi:
+ACME-IOT
+
+Status:
+ONLINE
+
+Storage:
+Acme Corporate S3
+
+Telemetry:
+Connected
+
+[ Finish ]
+Enterprise login becomes especially important
+
+For a real enterprise product, I would not force a Fortune 500 company to maintain another set of usernames/passwords.
+
+You would support identity providers like:
+
+Microsoft Entra ID
+Okta
+Google Workspace
+Ping Identity
+SAML
+OIDC
+
+So someone working at Acme clicks:
+
+[ Sign in with Acme Corporate Account ]
+
+They get redirected to Microsoft's login:
+
+Microsoft
+
+john.smith@acme.com
+***********
+
+MFA verification
+
+Then Microsoft sends your application a token saying essentially:
+
+{
+  "email": "john.smith@acme.com",
+  "organization": "acme",
+  "groups": [
+    "HardHat-Admins"
+  ]
+}
+
+Your system maps that group to:
+
+Acme Construction
+
+John Smith
+Role: Device Administrator
+
+Then permissions could be:
+
+Organization Admin
+    ├── manage storage
+    ├── manage SSO
+    ├── manage users
+    └── manage all devices
+
+Device Admin
+    ├── onboard helmets
+    ├── remove helmets
+    └── update device configuration
+
+Site Manager
+    ├── view site devices
+    ├── view alerts
+    └── view telemetry
+
+Safety Officer
+    ├── view incidents
+    ├── view video
+    └── view analytics
+
+Viewer
+    └── read only
+
+That's RBAC — role-based access control.
+
+And your database model could be very simple initially:
+
+organizations
+─────────────
+id
+name
+
+users
+─────
+id
+email
+
+organization_users
+──────────────────
+organization_id
+user_id
+role
+
+sites
+─────
+id
+organization_id
+name
+
+devices
+───────
+id
+serial_number
+organization_id
+site_id
+status
+
+storage_configs
+───────────────
+organization_id
+provider
+bucket
+endpoint
+credentials_reference
+
+The biggest conceptual point is this:
+
+The customer logs into your management platform. The hard hat never logs in as a human user.
+
+The human account answers:
+
+"Who owns this helmet and who is allowed to configure it?"
+
+The device certificate answers:
+
+"Which physical helmet am I?"
+
+And BLE/Wi-Fi provisioning answers:
+
+"How does this helmet get network access?"
+
+Keeping those three identities separate will make your architecture much cleaner and much more enterprise-ready.
