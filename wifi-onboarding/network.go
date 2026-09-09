@@ -478,6 +478,15 @@ func joinNetwork(ctx context.Context, cfg Config, ssid, password string, hidden 
 	if _, err := runCmd(ctx, "nmcli", "connection", "up", connName); err != nil {
 		return fmt.Errorf("activating %q: %w", ssid, err)
 	}
+
+	// wlan0 has just switched from hosting our AP to being a client of a
+	// completely different network - our own custom hardhat_captive nftables
+	// table (the iifname-wlan0 DNAT rule from addCaptiveDNAT) is otherwise
+	// only cleaned up on the *failure* path (deactivateAP), and would
+	// otherwise linger, still matching traffic on wlan0, until whatever
+	// later code path happens to call deactivateAP next.
+	removeCaptiveDNAT(ctx, cfg)
+
 	log.Printf("wrote and activated client profile %s for %q", path, ssid)
 	return nil
 }
