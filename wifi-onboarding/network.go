@@ -140,6 +140,9 @@ func checkInternet(ctx context.Context, iface string, perRequestTimeout time.Dur
 	dialer := &net.Dialer{Timeout: perRequestTimeout}
 	if ip, err := ifaceIPv4(iface); err == nil {
 		dialer.LocalAddr = &net.TCPAddr{IP: ip}
+		log.Printf("connectivity probe: sourcing from %s (%s)", iface, ip)
+	} else {
+		log.Printf("connectivity probe: could not get an IPv4 address for %s, probing without interface scoping: %v", iface, err)
 	}
 	client := &http.Client{
 		Timeout:   perRequestTimeout,
@@ -148,16 +151,20 @@ func checkInternet(ctx context.Context, iface string, perRequestTimeout time.Dur
 	for _, url := range connectivityProbes {
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
+			log.Printf("connectivity probe: building request for %s: %v", url, err)
 			continue
 		}
 		resp, err := client.Do(req)
 		if err != nil {
+			log.Printf("connectivity probe: %s: %v", url, err)
 			continue
 		}
 		resp.Body.Close()
 		if resp.StatusCode == http.StatusNoContent {
+			log.Printf("connectivity probe: %s OK (204)", url)
 			return true
 		}
+		log.Printf("connectivity probe: %s returned unexpected status %d", url, resp.StatusCode)
 	}
 	return false
 }
