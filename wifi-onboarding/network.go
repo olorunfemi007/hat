@@ -335,9 +335,13 @@ func addCaptiveDNAT(ctx context.Context, cfg Config) {
 		log.Printf("note: captive DNAT chain setup: %v", err)
 		return
 	}
+	// "dnat ip to ..." not bare "dnat to ...": in an `inet`-family table
+	// (dual-stack), a NAT statement must specify which address family it
+	// translates for - IPv4 here, since cfg.APGateway is always an IPv4
+	// address - or nft rejects it as ambiguous.
 	dst := fmt.Sprintf("%s:80", cfg.APGateway)
 	if _, err := runCmd(ctx, "nft", "add", "rule", "inet", captiveNATTable, "prerouting",
-		"iifname", cfg.Iface, "tcp", "dport", "80", "dnat", "to", dst); err != nil {
+		"iifname", cfg.Iface, "tcp", "dport", "80", "dnat", "ip", "to", dst); err != nil {
 		log.Printf("warning: could not add captive-portal DNAT rule (DNS redirect alone still covers most clients): %v", err)
 	}
 }
