@@ -137,12 +137,16 @@ var connectivityProbes = []string{
 // Ethernet, or the AP's own local subnet replying to itself) and be
 // misread as the Wi-Fi interface itself having real internet access.
 func checkInternet(ctx context.Context, iface string, perRequestTimeout time.Duration) bool {
-	dialer := &net.Dialer{Timeout: perRequestTimeout}
+	// Control (SO_BINDTODEVICE on Linux) is the authoritative fix - it forces
+	// egress out iface regardless of the routing table. LocalAddr is kept as
+	// well: harmless, and gives a clearer log line for which address we're
+	// sourcing from.
+	dialer := &net.Dialer{Timeout: perRequestTimeout, Control: bindToDeviceControl(iface)}
 	if ip, err := ifaceIPv4(iface); err == nil {
 		dialer.LocalAddr = &net.TCPAddr{IP: ip}
-		log.Printf("connectivity probe: sourcing from %s (%s)", iface, ip)
+		log.Printf("connectivity probe: sourcing from %s (%s), bound to device", iface, ip)
 	} else {
-		log.Printf("connectivity probe: could not get an IPv4 address for %s, probing without interface scoping: %v", iface, err)
+		log.Printf("connectivity probe: could not get an IPv4 address for %s, probing bound to device only: %v", iface, err)
 	}
 	client := &http.Client{
 		Timeout:   perRequestTimeout,
