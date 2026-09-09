@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hard Hat Setup</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 480px; margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; background: #fff; }
+  h1 { font-size: 1.4rem; }
+  fieldset { border: 1px solid #ccc; border-radius: 8px; margin-bottom: 1rem; }
+  legend { padding: 0 0.4rem; font-weight: 600; }
+  label.network { display: block; padding: 0.5rem 0.25rem; border-bottom: 1px solid #eee; }
+  label.network:last-child { border-bottom: none; }
+  .signal { color: #666; font-size: 0.85rem; float: right; }
+  label.field { display: block; margin: 0.75rem 0; font-size: 0.9rem; }
+  input[type=text], input[type=password] { width: 100%; padding: 0.5rem; box-sizing: border-box; margin-top: 0.25rem; font-size: 1rem; }
+  button { width: 100%; padding: 0.75rem; font-size: 1rem; margin-top: 1rem; background: #1a73e8; color: #fff; border: none; border-radius: 6px; }
+  .error { background: #fdecea; color: #611a15; border: 1px solid #f5c2c0; border-radius: 6px; padding: 0.75rem; margin-bottom: 1rem; }
+  .hint { color: #666; font-size: 0.85rem; margin-top: 1rem; }
+</style>
+</head>
+<body>
+  <h1>Set up Wi-Fi for this helmet</h1>
+  {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
+  <p>This device is broadcasting its own temporary hotspot (<strong>{{.APSSID}}</strong>) so you can connect it to your real Wi-Fi network. Pick a network below, or type one in manually, then enter its password.</p>
+  <form method="POST" action="/connect">
+    {{if .Networks}}
+    <fieldset>
+      <legend>Nearby networks (snapshot)</legend>
+      {{range $i, $n := .Networks}}
+      <label class="network">
+        <input type="radio" name="ssid" value="{{$n.SSID}}"{{if eq $i 0}} checked{{end}}>
+        {{$n.SSID}}{{if $n.Security}} &#128274;{{end}}
+        <span class="signal">{{$n.Signal}}%</span>
+      </label>
+      {{end}}
+    </fieldset>
+    {{else}}
+    <p class="hint">No networks were found in the last scan. Type your network's name below.</p>
+    {{end}}
+    <label class="field">
+      Or type a network name (overrides the list above):
+      <input type="text" name="ssid_manual" placeholder="Network name (SSID)" autocapitalize="off" autocorrect="off" spellcheck="false">
+    </label>
+    <label class="field">
+      Password
+      <input type="password" name="password" placeholder="Leave blank for an open network">
+    </label>
+    <label class="field"><input type="checkbox" name="hidden"> This network is hidden</label>
+    <button type="submit">Join network</button>
+  </form>
+  <p class="hint">
+    The list above was captured just before this hotspot started and will not update while it's running &mdash; the helmet's Wi-Fi radio can't scan for networks and run a hotspot at the same time. If your network isn't listed, use the manual field instead.
+  </p>
+  <p class="hint">
+    After you submit, <strong>{{.APSSID}}</strong> will disconnect while the helmet attempts to join your network &mdash; that's expected, not an error. If this page doesn't come back within about a minute, reconnect your phone/laptop to <strong>{{.APSSID}}</strong> and reload this page: either it worked (and the hotspot is gone for good), or you'll see an error here and can try again.
+  </p>
+  <p class="hint">
+    iPhone/iPad: if this page didn't open automatically after joining the hotspot, open Safari and browse to any http:// address to bring it back (a known iOS issue can prevent the automatic prompt).
+  </p>
+</body>
+</html>

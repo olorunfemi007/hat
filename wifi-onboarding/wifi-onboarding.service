@@ -1,0 +1,24 @@
+[Unit]
+Description=Hard Hat Wi-Fi onboarding (temporary AP + captive portal)
+Documentation=file:///opt/hardhat/wifi-onboarding/README.md
+Wants=NetworkManager.service NetworkManager-wait-online.service
+After=NetworkManager.service NetworkManager-wait-online.service network.target
+
+[Service]
+Type=simple
+EnvironmentFile=-/etc/hardhat/wifi-onboarding.env
+# Deliberately no -ap-password flag here: main.go's parseFlags() already
+# reads $AP_PASSWORD from the process environment (which EnvironmentFile=
+# sets) in preference to its flag default. A flag value would sit in this
+# long-running process's argv in plaintext for its entire lifetime, readable
+# by any local user via ps/proc/<pid>/cmdline - the env var does not have
+# this exposure. This also means a missing/blank env file falls back to the
+# compiled-in default password instead of launching with an empty,
+# WPA2-invalid one and crash-looping.
+ExecStart=/usr/local/bin/wifi-onboarding
+Restart=always
+RestartSec=5
+User=root
+
+[Install]
+WantedBy=multi-user.target
