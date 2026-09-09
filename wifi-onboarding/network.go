@@ -331,7 +331,7 @@ func addCaptiveDNAT(ctx context.Context, cfg Config) {
 	_, _ = runCmd(ctx, "nft", "delete", "table", "inet", captiveNATTable) // clean slate from any prior crashed run
 	_, _ = runCmd(ctx, "nft", "add", "table", "inet", captiveNATTable)
 	if _, err := runCmd(ctx, "nft", "add", "chain", "inet", captiveNATTable, "prerouting",
-		"{", "type", "nat", "hook", "prerouting", "priority", "-100", "}"); err != nil {
+		"{", "type", "nat", "hook", "prerouting", "priority", "-100", ";", "}"); err != nil {
 		log.Printf("note: captive DNAT chain setup: %v", err)
 		return
 	}
