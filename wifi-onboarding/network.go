@@ -372,59 +372,105 @@ func waitForDeviceIdle(ctx context.Context, iface string, timeout time.Duration)
 	}
 }
 
-// joinNetwork never routes through runCmd, since its args contain the
-// admin-supplied plaintext Wi-Fi password and runCmd's error path would
-// otherwise echo args verbatim into logs.
-func joinNetwork(ctx context.Context, cfg Config, ssid, password string, hidden bool) error {
-	args := []string{"device", "wifi", "connect", ssid, "ifname", cfg.Iface}
-	if password != "" {
-		args = append(args, "password", password)
+// keyMgmtForSecurity picks the nmcli wifi-sec.key-mgmt value from a scanned
+// network's nmcli SECURITY field (e.g. "WPA2", "WPA1 WPA2", "WPA3",
+// "WPA2 WPA3"). Defaults to wpa-psk (covers WPA1/WPA2/mixed WPA2+WPA3
+// personal APs, the overwhelming common case) unless the scan reports WPA3
+// with no WPA2 fallback, which needs SAE instead - a plain PSK association
+// against an SAE-only AP fails outright.
+func keyMgmtForSecurity(security string) string {
+	if strings.Contains(security, "WPA3") && !strings.Contains(security, "WPA2") && !strings.Contains(security, "WPA1") {
+		return "sae"
 	}
-	if hidden {
-		args = append(args, "hidden", "yes")
-	}
+	return "wpa-psk"
+}
 
-	cmd := exec.CommandContext(ctx, "nmcli", args...)
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &out
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("nmcli device wifi connect %q: %w: %s", ssid, err, strings.TrimSpace(out.String()))
+// validateSSIDForFilename rejects any SSID that could escape systemConnDir
+// once embedded in joinNetwork's generated filename. The SSID is
+// admin-submitted over the captive portal's HTTP form - reaching that form
+// requires already knowing the setup AP's own password, but it's still
+// untrusted input from this process's point of view, and this process runs
+// as root. filepath.Join/Clean resolve ".." components across the *entire*
+// joined path, not just within the ssid substring, so e.g. an ssid of
+// "../../../etc/cron.d/evil" could otherwise be used for an arbitrary file
+// write as root outside systemConnDir entirely.
+func validateSSIDForFilename(ssid string) error {
+	if ssid == "" || ssid == "." || ssid == ".." {
+		return fmt.Errorf("invalid network name")
 	}
-
-	if err := ensurePersisted(ctx, ssid); err != nil {
-		log.Printf("warning: joined %q but could not confirm the profile persisted to /etc (may not survive a reboot): %v", ssid, err)
+	if strings.ContainsAny(ssid, "/\\\x00") {
+		return fmt.Errorf("network name contains an unsupported character")
 	}
 	return nil
 }
 
-// ensurePersisted covers the other half of the same Trixie regression
-// ensureAPProfile works around: nmcli device wifi connect can also drop its
-// generated profile into the volatile /run instead of /etc.
-func ensurePersisted(ctx context.Context, connName string) error {
-	out, err := runCmd(ctx, "nmcli", "-g", "GENERAL.FILENAME", "connection", "show", connName)
-	if err != nil {
+// joinNetwork writes an explicit connection profile via `nmcli --offline`
+// (the same technique ensureAPProfile uses for the setup AP) rather than the
+// simpler `nmcli device wifi connect ... password <pw>` convenience command.
+// Two independent reasons: (1) that command puts the plaintext password on
+// this process's own argv, momentarily visible to other local users via
+// ps/proc/<pid>/cmdline; (2) confirmed against a real access point (an
+// Android hotspot, likely WPA2/WPA3-mixed "Personal" security) that
+// command's automatic profile generation can fail outright with
+// "802-11-wireless-security.key-mgmt: property is missing" - nmcli's
+// heuristic for inferring the security profile from just a password isn't
+// reliable for every AP's advertised capabilities, so this sets
+// wifi-sec.key-mgmt explicitly instead of leaving nmcli to guess. Writing
+// straight into /etc also means, unlike the old approach, there's no
+// separate "did it land in /run instead" persistence check needed - this
+// profile is never written anywhere else.
+func joinNetwork(ctx context.Context, cfg Config, ssid, password string, hidden bool, security string) error {
+	if err := validateSSIDForFilename(ssid); err != nil {
 		return err
 	}
-	filename := strings.TrimSpace(out)
-	if filename == "" {
-		return fmt.Errorf("no filename reported for connection %q", connName)
+	connName := "hardhat-client-" + ssid
+
+	args := []string{
+		"--offline", "connection", "add",
+		"con-name", connName,
+		"type", "wifi",
+		"ifname", cfg.Iface,
+		"wifi.ssid", ssid,
 	}
-	if strings.HasPrefix(filename, "/etc/") {
-		return nil
+	if hidden {
+		args = append(args, "wifi.hidden", "yes")
+	}
+	if password != "" {
+		args = append(args,
+			"wifi-sec.key-mgmt", keyMgmtForSecurity(security),
+			"wifi-sec.psk", password,
+		)
 	}
 
-	data, err := os.ReadFile(filename)
-	if err != nil {
-		return fmt.Errorf("reading volatile profile %s: %w", filename, err)
+	cmd := exec.CommandContext(ctx, "nmcli", args...)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		// stdout is the generated keyfile (plaintext PSK included) - never
+		// put it in an error message/log, even on failure.
+		return fmt.Errorf("nmcli --offline connection add for %q: %w: %s", ssid, err, strings.TrimSpace(stderr.String()))
 	}
-	dst := filepath.Join(systemConnDir, filepath.Base(filename))
-	if err := os.WriteFile(dst, data, 0600); err != nil {
-		return fmt.Errorf("persisting profile to %s: %w", dst, err)
+
+	if err := os.MkdirAll(systemConnDir, 0700); err != nil {
+		return err
+	}
+	path := filepath.Join(systemConnDir, connName+".nmconnection")
+	// Defense in depth on top of validateSSIDForFilename: confirm the
+	// resolved path is still actually inside systemConnDir before writing.
+	if filepath.Dir(path) != filepath.Clean(systemConnDir) {
+		return fmt.Errorf("refusing to write connection profile outside %s (got %s)", systemConnDir, path)
+	}
+	if err := os.WriteFile(path, stdout.Bytes(), 0600); err != nil {
+		return err
 	}
 	if _, err := runCmd(ctx, "nmcli", "connection", "reload"); err != nil {
 		return err
 	}
-	log.Printf("persisted volatile connection profile %s -> %s", filename, dst)
+
+	if _, err := runCmd(ctx, "nmcli", "connection", "up", connName); err != nil {
+		return fmt.Errorf("activating %q: %w", ssid, err)
+	}
+	log.Printf("wrote and activated client profile %s for %q", path, ssid)
 	return nil
 }

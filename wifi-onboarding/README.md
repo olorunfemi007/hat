@@ -302,16 +302,30 @@ ruleset` check while the AP is up either way.
   given NetworkManager version emits from `nmcli -t -f TYPE connection show`
   wasn't verifiable from this machine. Worth confirming against the actual
   Pi's `nmcli --version` output the first time this runs.
-- **`nft` DNAT rule syntax.** The `nft add chain ... { type nat hook
-  prerouting priority -100 }` / `nft add rule ...` invocations in
-  `addCaptiveDNAT` are built as argv arrays (no shell), which should parse
-  identically to the equivalent shell-quoted form everywhere else, but
-  wasn't runnable here to confirm against the real `nft` binary on Trixie.
-  Failures here are logged as warnings and don't block AP mode - the DNS
-  wildcard redirect is the primary mechanism and covers the common case on
-  its own - but it's worth checking `sudo nft list ruleset` while the AP is
-  up to confirm the `hardhat_captive` table actually has the expected DNAT
-  rule in it.
+- ~~`nft` DNAT rule syntax~~ **Resolved, confirmed against real hardware.**
+  Two real bugs were found and fixed by actually running this on a Pi:
+  (1) the chain-block spec needs a semicolon before its closing brace -
+  `{ type nat hook prerouting priority -100 ; }`, not `{ ... -100 }` - or nft
+  rejects it with "syntax error, unexpected end of file"; (2) in an `inet`
+  (dual-stack) family table, a NAT statement must specify which address
+  family it translates for - `dnat ip to <addr>`, not a bare `dnat to
+  <addr>` - or nft rejects it as ambiguous. Both are fixed in the current
+  code. Failures here are non-fatal either way (logged as warnings, don't
+  block AP mode) - the DNS wildcard redirect is the primary mechanism - but
+  worth a `sudo nft list ruleset` check while the AP is up to confirm the
+  `hardhat_captive` table's DNAT rule actually landed.
+- ~~`nmcli device wifi connect` for joining the target network~~ **Resolved,
+  confirmed against real hardware.** The original implementation used
+  `nmcli device wifi connect <ssid> password <pw>`, which relies on nmcli's
+  own heuristics to infer the security profile. Against a real Android
+  hotspot (S24 Ultra, likely WPA2/WPA3-mixed "Personal" security) this
+  failed outright with `802-11-wireless-security.key-mgmt: property is
+  missing`. Fixed by writing an explicit connection profile via `nmcli
+  --offline` instead (the same technique already used for the setup AP's own
+  profile), setting `wifi-sec.key-mgmt` explicitly rather than leaving nmcli
+  to guess - `wpa-psk` by default, `sae` if the pre-AP scan reported the
+  target as WPA3-only. This also incidentally fixed a separate issue (the
+  admin-submitted password briefly appearing in `nmcli`'s own process args).
 - **Single-radio AP+STA exclusivity** is assumed throughout (can't scan
   while hosting an AP; joining a new network necessarily tears down the AP).
   This matches the research this was built against, but if the Pi ends up

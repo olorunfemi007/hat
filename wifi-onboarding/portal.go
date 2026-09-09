@@ -124,6 +124,20 @@ func (a *App) handleConnect(w http.ResponseWriter, r *http.Request, joined chan<
 		return
 	}
 
+	// Look up the scanned security type (e.g. "WPA2", "WPA2 WPA3") for this
+	// SSID so joinNetwork can pick the right wifi-sec.key-mgmt value instead
+	// of guessing - manual/hidden entries won't be in the cached scan, which
+	// is fine, joinNetwork's default (wpa-psk) covers the common case.
+	var security string
+	a.mu.Lock()
+	for _, n := range a.networks {
+		if n.SSID == ssid {
+			security = n.Security
+			break
+		}
+	}
+	a.mu.Unlock()
+
 	log.Printf("attempting to join %q", ssid)
 
 	// Deliberately not r.Context(): activating the target network forces
@@ -134,7 +148,7 @@ func (a *App) handleConnect(w http.ResponseWriter, r *http.Request, joined chan<
 	joinCtx, cancel := context.WithTimeout(context.Background(), a.cfg.JoinTimeout)
 	defer cancel()
 
-	if err := joinNetwork(joinCtx, a.cfg, ssid, password, hidden); err != nil {
+	if err := joinNetwork(joinCtx, a.cfg, ssid, password, hidden, security); err != nil {
 		log.Printf("join %q failed: %v", ssid, err)
 		a.setError(fmt.Sprintf("Could not join %q: %v", ssid, err))
 
