@@ -1,0 +1,28 @@
+[Unit]
+Description=Hard Hat device identity and heartbeat
+Documentation=file:///opt/hardhat/device-agent/README.md
+After=network.target
+ConditionPathExists=/etc/hardhat/device.json
+
+[Service]
+Type=simple
+DynamicUser=yes
+LoadCredential=device.json:/etc/hardhat/device.json
+ExecStart=/usr/bin/python3 -B /opt/hardhat/device-agent/heartbeat.py --config %d/device.json
+Restart=on-failure
+RestartSec=10
+RestartPreventExitStatus=78
+TimeoutStopSec=15
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

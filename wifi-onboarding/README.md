@@ -11,10 +11,11 @@ if it ever loses connectivity.
 This is a standalone component, independent of `voice-trigger/` - it only
 touches network configuration.
 
-Not in scope here (see `workflow.txt` for the fuller picture): the QR
-code/device-ID/claim-token flow, the "hold a button for 5s to enter setup
-mode" trigger, and contacting a provisioning service after joining. This
-program's job ends at "the helmet is on the real Wi-Fi network."
+The Go program's job ends at "the helmet is on the real Wi-Fi network."
+The separate [device-agent](../device-agent/README.md) handles persistent Pi
+identity and portal heartbeats. This installer also installs that companion;
+provision and install its per-Pi config to activate it. The "hold a button
+for 5s to enter setup mode" trigger remains outside this component.
 
 ## Files
 

@@ -132,3 +132,10 @@ echo
 echo "Start it with:"
 echo "  sudo systemctl start wifi-onboarding.service"
 echo "  journalctl -u wifi-onboarding.service -f"
+
+# Install the identity companion independently; it never reconfigures Wi-Fi.
+if [ -f "$SCRIPT_DIR/../device-agent/setup_pi.sh" ]; then
+    bash "$SCRIPT_DIR/../device-agent/setup_pi.sh"
+else
+    echo "Install device-agent/ from the full repository to enable portal heartbeats."
+fi

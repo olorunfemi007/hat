@@ -1,0 +1,517 @@
+{
+  "/Users/femi/dev/hardhat/.claude/settings.local.json": {
+    "mtime": 1788835627.8098218,
+    "ast_hash": "2e4da47c9ccf380d3e232ed68d0196bf",
+    "semantic_hash": "2e4da47c9ccf380d3e232ed68d0196bf"
+  },
+  "/Users/femi/dev/hardhat/portal/eslint.config.mjs": {
+    "mtime": 1788971482.1780388,
+    "ast_hash": "dfa1f5f6a7037bf39dc510f30b180002",
+    "semantic_hash": "dfa1f5f6a7037bf39dc510f30b180002"
+  },
+  "/Users/femi/dev/hardhat/portal/next-env.d.ts": {
+    "mtime": 1789009952.765769,
+    "ast_hash": "8195d2c60ce847a459ae9d308d6a5724",
+    "semantic_hash": "8195d2c60ce847a459ae9d308d6a5724"
+  },
+  "/Users/femi/dev/hardhat/portal/next.config.ts": {
+    "mtime": 1788972323.5644886,
+    "ast_hash": "40caefe75b9770524f98c6ad6779a3d2",
+    "semantic_hash": "40caefe75b9770524f98c6ad6779a3d2"
+  },
+  "/Users/femi/dev/hardhat/portal/package.json": {
+    "mtime": 1788998238.3925147,
+    "ast_hash": "33ae6b3ca90c2997951e0bd70c2bcaa1",
+    "semantic_hash": "33ae6b3ca90c2997951e0bd70c2bcaa1"
+  },
+  "/Users/femi/dev/hardhat/portal/postcss.config.mjs": {
+    "mtime": 1788971482.1845956,
+    "ast_hash": "239f3ebf717465dc636818a1a619398d",
+    "semantic_hash": "239f3ebf717465dc636818a1a619398d"
+  },
+  "/Users/femi/dev/hardhat/portal/src/app/(app)/actions.ts": {
+    "mtime": 1788998963.8205788,
+    "ast_hash": "cbaa7d4df868e9018b5ec420de64fef1",
+    "semantic_hash": "cbaa7d4df868e9018b5ec420de64fef1"
+  },
+  "/Users/femi/dev/hardhat/portal/src/app/(app)/dashboard/page.tsx": {
+    "mtime": 1788998354.1889474,
+    "ast_hash": "67548d2065320fd9283b8886ef18d12e",
+    "semantic_hash": "67548d2065320fd9283b8886ef18d12e"
+  },
+  "/Users/femi/dev/hardhat/portal/src/app/(app)/devices/actions.ts": {
+    "mtime": 1788998407.674766,
+    "ast_hash": "abfba72eb9476dc2f0704a9c3acfe3b9",
+    "semantic_hash": "abfba72eb9476dc2f0704a9c3acfe3b9"
+  },
+  "/Users/femi/dev/hardhat/portal/src/app/(app)/devices/claim/actions.ts": {
+    "mtime": 1788998445.9705715,
+    "ast_hash": "0601aaa7a4d4292b8fb94a45c00d103d",
+    "semantic_hash": "0601aaa7a4d4292b8fb94a45c00d103d"
+  },
+  "/Users/femi/dev/hardhat/portal/src/app/(app)/devices/claim/claim-form.tsx": {
+    "mtime": 1788971962.9724333,
+    "ast_hash": "28788615b35ef71d90ad904a9fe33344",
+    "semantic_hash": "28788615b35ef71d90ad904a9fe33344"
+  },
+  "/Users/femi/dev/hardhat/portal/src/app/(app)/devices/claim/page.tsx": {
+    "mtime": 1788998464.3929658,
+    "ast_hash": "b26a8a88ff1f91339a87a70af028a283",
+    "semantic_hash": "b26a8a88ff1f91339a87a70af028a283"
+  },
+  "/Users/femi/dev/hardhat/portal/src/app/(app)/devices/device-row.tsx": {
+    "mtime": 1788971837.938563,
+    "ast_hash": "0f3ec253bf0663bebd2f15fac0bb45d2",
+    "semantic_hash": "0f3ec253bf0663bebd2f15fac0bb45d2"
+  },
+  "/Users/femi/dev/hardhat/portal/src/app/(app)/devices/page.tsx": {
+    "mtime": 1788998397.2602532,
+    "ast_hash": "bb3dddfcf3b2ddc14dc348f0c7a66639",
+    "semantic_hash": "bb3dddfcf3b2ddc14dc348f0c7a66639"
+  },
+  "/Users/femi/dev/hardhat/portal/src/app/(app)/error.tsx": {
+    "mtime": 1788973054.4648561,
+    "ast_hash": "7ba3678ebcddc441fe2c6a929a832fdd",
+    "semantic_hash": "7ba3678ebcddc441fe2c6a929a832fdd"
+  },
+  "/Users/femi/dev/hardhat/portal/src/app/(app)/layout.tsx": {
+    "mtime": 1788998949.3170457,
+    "ast_hash": "b0398cd5ed849dffefd89aab3068d75a",
+    "semantic_hash": "b0398cd5ed849dffefd89aab3068d75a"
+  },
+  "/Users/femi/dev/hardhat/portal/src/app/(app)/loading.tsx": {
+    "mtime": 1788973047.5574474,
+    "ast_hash": "aec3ff373f323360150ab246a5b0549a",
+    "semantic_hash": "aec3ff373f323360150ab246a5b0549a"
+  },
+  "/Users/femi/dev/hardhat/portal/src/app/(app)/org-switcher.tsx": {
+    "mtime": 1788998978.795017,
+    "ast_hash": "23ced514338b69012645dc049642afbe",
+    "semantic_hash": "23ced514338b69012645dc049642afbe"
+  },
+  "/Users/femi/dev/hardhat/portal/src/app/(app)/org/actions.ts": {
+    "mtime": 1788999025.191744,
+    "ast_hash": "71e4d853ebb3e92b6dd6f7d54905cd3a",
+    "semantic_hash": "71e4d853ebb3e92b6dd6f7d54905cd3a"
+  },
+  "/Users/femi/dev/hardhat/portal/src/app/(app)/org/invite-form.tsx": {
+    "mtime": 1788999100.1446092,
+    "ast_hash": "546baadca1f11edc1a9f469b25ec169f",
+    "semantic_hash": "546baadca1f11edc1a9f469b25ec169f"
+  },
+  "/Users/femi/dev/hardhat/portal/src/app/(app)/org/member-list.tsx": {
+    "mtime": 1788999088.5826857,
+    "ast_hash": "34990966e711efa4525cf1ca7f1d2dd6",
+    "semantic_hash": "34990966e711efa4525cf1ca7f1d2dd6"
+  },
+  "/Users/femi/dev/hardhat/portal/src/app/(app)/org/page.tsx": {
+    "mtime": 1788999068.6755543,
+    "ast_hash": "695ec7e725dfcc61e22abcc96c59c05c",
+    "semantic_hash": "695ec7e725dfcc61e22abcc96c59c05c"
+  },
+  "/Users/femi/dev/hardhat/portal/src/app/(app)/org/pending-invites.tsx": {
+    "mtime": 1788999111.6835208,
+    "ast_hash": "9b8bddc911d586472b9ae6fbd6d5e646",
+    "semantic_hash": "9b8bddc911d586472b9ae6fbd6d5e646"
+  },
+  "/Users/femi/dev/hardhat/portal/src/app/(app)/org/rename-org-form.tsx": {
+    "mtime": 1788972034.75803,
+    "ast_hash": "79b2929258b71dfb509880f18332541b",
+    "semantic_hash": "79b2929258b71dfb509880f18332541b"
+  },
+  "/Users/femi/dev/hardhat/portal/src/app/(app)/sites/actions.ts": {
+    "mtime": 1788999523.4399142,
+    "ast_hash": "91a06a1e4c8124ad1c8ed8b2bffcc568",
+    "semantic_hash": "91a06a1e4c8124ad1c8ed8b2bffcc568"
+  },
+  "/Users/femi/dev/hardhat/portal/src/app/(app)/sites/create-site-form.tsx": {
+    "mtime": 1788971798.7409565,
+    "ast_hash": "e2140e366b48df0240ef8af40d3173b3",
+    "semantic_hash": "e2140e366b48df0240ef8af40d3173b3"
+  },
+  "/Users/femi/dev/hardhat/portal/src/app/(app)/sites/page.tsx": {
+    "mtime": 1788998368.4826136,
+    "ast_hash": "2d9b35733167d7ddb382f28426100ad3",
+    "semantic_hash": "2d9b35733167d7ddb382f28426100ad3"
+  },
+  "/Users/femi/dev/hardhat/portal/src/app/(app)/sites/site-row.tsx": {
+    "mtime": 1788971808.7418678,
+    "ast_hash": "61c0fd894340c96934a1966b8a7defa4",
+    "semantic_hash": "61c0fd894340c96934a1966b8a7defa4"
+  },
+  "/Users/femi/dev/hardhat/portal/src/app/(app)/storage/actions.ts": {
+    "mtime": 1788998492.3399844,
+    "ast_hash": "f882dd4208774e3a64d417a04971a3d9",
+    "semantic_hash": "f882dd4208774e3a64d417a04971a3d9"
+  },
+  "/Users/femi/dev/hardhat/portal/src/app/(app)/storage/page.tsx": {
+    "mtime": 1788998478.977711,
+    "ast_hash": "767ceaa50a3605b07ffd5de1db12ea75",
+    "semantic_hash": "767ceaa50a3605b07ffd5de1db12ea75"
+  },
+  "/Users/femi/dev/hardhat/portal/src/app/(app)/storage/storage-config-form.tsx": {
+    "mtime": 1788972007.467686,
+    "ast_hash": "8eb7f8771bc8bae4bfba09581855057e",
+    "semantic_hash": "8eb7f8771bc8bae4bfba09581855057e"
+  },
+  "/Users/femi/dev/hardhat/portal/src/app/(app)/storage/storage-config-row.tsx": {
+    "mtime": 1788972014.3693178,
+    "ast_hash": "b537e2c52009618b8af15209edf7bba6",
+    "semantic_hash": "b537e2c52009618b8af15209edf7bba6"
+  },
+  "/Users/femi/dev/hardhat/portal/src/app/auth/actions.ts": {
+    "mtime": 1788998631.6947718,
+    "ast_hash": "a5bdfbd37570649935e2378e60b97b7c",
+    "semantic_hash": "a5bdfbd37570649935e2378e60b97b7c"
+  },
+  "/Users/femi/dev/hardhat/portal/src/app/auth/confirm/route.ts": {
+    "mtime": 1788998721.9864829,
+    "ast_hash": "9aad77b547b4d1fd70457b85af6ab5f5",
+    "semantic_hash": "9aad77b547b4d1fd70457b85af6ab5f5"
+  },
+  "/Users/femi/dev/hardhat/portal/src/app/auth/error/page.tsx": {
+    "mtime": 1788998757.0040271,
+    "ast_hash": "e14d1e9696c2d6a2bc1a9b7d8631a268",
+    "semantic_hash": "e14d1e9696c2d6a2bc1a9b7d8631a268"
+  },
+  "/Users/femi/dev/hardhat/portal/src/app/auth/forgot-password/page.tsx": {
+    "mtime": 1788998797.2370455,
+    "ast_hash": "594a1f8989e1d88d7a8fd6c034ed76d3",
+    "semantic_hash": "594a1f8989e1d88d7a8fd6c034ed76d3"
+  },
+  "/Users/femi/dev/hardhat/portal/src/app/auth/reset-password/page.tsx": {
+    "mtime": 1788998812.0696843,
+    "ast_hash": "5e53dfaed4c03e1977dcac8d9f27094e",
+    "semantic_hash": "5e53dfaed4c03e1977dcac8d9f27094e"
+  },
+  "/Users/femi/dev/hardhat/portal/src/app/layout.tsx": {
+    "mtime": 1788999132.9961448,
+    "ast_hash": "b0def4e7547cc6847e3fbfd16667e539",
+    "semantic_hash": "b0def4e7547cc6847e3fbfd16667e539"
+  },
+  "/Users/femi/dev/hardhat/portal/src/app/onboarding/actions.ts": {
+    "mtime": 1788998830.6149414,
+    "ast_hash": "d79e1e5e94a839d61f7f1c81232c27e8",
+    "semantic_hash": "d79e1e5e94a839d61f7f1c81232c27e8"
+  },
+  "/Users/femi/dev/hardhat/portal/src/app/onboarding/create-org-form.tsx": {
+    "mtime": 1788998854.167314,
+    "ast_hash": "824acf16b7871ba5aa6cd1ec10717614",
+    "semantic_hash": "824acf16b7871ba5aa6cd1ec10717614"
+  },
+  "/Users/femi/dev/hardhat/portal/src/app/onboarding/page.tsx": {
+    "mtime": 1788998843.639912,
+    "ast_hash": "c120543637d6bbf055db09a4576b5ec9",
+    "semantic_hash": "c120543637d6bbf055db09a4576b5ec9"
+  },
+  "/Users/femi/dev/hardhat/portal/src/app/page.tsx": {
+    "mtime": 1788999157.299732,
+    "ast_hash": "01c5d266d504908c6526f2cf83b8178f",
+    "semantic_hash": "01c5d266d504908c6526f2cf83b8178f"
+  },
+  "/Users/femi/dev/hardhat/portal/src/app/sign-in/page.tsx": {
+    "mtime": 1788998770.4841666,
+    "ast_hash": "76f9516c7c032d10473ddd59beb5279f",
+    "semantic_hash": "76f9516c7c032d10473ddd59beb5279f"
+  },
+  "/Users/femi/dev/hardhat/portal/src/app/sign-up/page.tsx": {
+    "mtime": 1788998783.7021153,
+    "ast_hash": "efe38460216fca3e061a576de59031cc",
+    "semantic_hash": "efe38460216fca3e061a576de59031cc"
+  },
+  "/Users/femi/dev/hardhat/portal/src/components/nav-links.tsx": {
+    "mtime": 1788971716.8700461,
+    "ast_hash": "40c8f038a144b824b700040b5a741209",
+    "semantic_hash": "40c8f038a144b824b700040b5a741209"
+  },
+  "/Users/femi/dev/hardhat/portal/src/components/status-badge.tsx": {
+    "mtime": 1788971827.6594143,
+    "ast_hash": "92522afaed04b43288013a90251b3d2a",
+    "semantic_hash": "92522afaed04b43288013a90251b3d2a"
+  },
+  "/Users/femi/dev/hardhat/portal/src/lib/org-context.ts": {
+    "mtime": 1788998706.6385558,
+    "ast_hash": "4011ee7f0bc1fa80685b65adabe15b31",
+    "semantic_hash": "4011ee7f0bc1fa80685b65adabe15b31"
+  },
+  "/Users/femi/dev/hardhat/portal/src/lib/roles.ts": {
+    "mtime": 1788998252.4839554,
+    "ast_hash": "a3064d902f512d279762f7f01be52617",
+    "semantic_hash": "a3064d902f512d279762f7f01be52617"
+  },
+  "/Users/femi/dev/hardhat/portal/src/lib/supabase/admin.ts": {
+    "mtime": 1788998516.5030057,
+    "ast_hash": "86b75c5664947cde56cb4a07a7417781",
+    "semantic_hash": "86b75c5664947cde56cb4a07a7417781"
+  },
+  "/Users/femi/dev/hardhat/portal/src/lib/supabase/client.ts": {
+    "mtime": 1788998281.1679533,
+    "ast_hash": "414d03b7875c8cf5c8431745f7574b30",
+    "semantic_hash": "414d03b7875c8cf5c8431745f7574b30"
+  },
+  "/Users/femi/dev/hardhat/portal/src/lib/supabase/middleware.ts": {
+    "mtime": 1788998740.7757556,
+    "ast_hash": "bc687e02d614f95f43013a22fe1f8d76",
+    "semantic_hash": "bc687e02d614f95f43013a22fe1f8d76"
+  },
+  "/Users/femi/dev/hardhat/portal/src/lib/supabase/server.ts": {
+    "mtime": 1788998271.2417767,
+    "ast_hash": "3890a3e1dd0b6b645af66d6f01ddbfa3",
+    "semantic_hash": "3890a3e1dd0b6b645af66d6f01ddbfa3"
+  },
+  "/Users/femi/dev/hardhat/portal/src/lib/supabase/types.ts": {
+    "mtime": 1788998928.8869855,
+    "ast_hash": "8f498b92325f08cda63bbe3d280fbcb5",
+    "semantic_hash": "8f498b92325f08cda63bbe3d280fbcb5"
+  },
+  "/Users/femi/dev/hardhat/portal/src/proxy.ts": {
+    "mtime": 1788998555.5516393,
+    "ast_hash": "a07df93890a70d43fad32be936b3464f",
+    "semantic_hash": "a07df93890a70d43fad32be936b3464f"
+  },
+  "/Users/femi/dev/hardhat/portal/supabase/local-test/00_supabase_shim.sql": {
+    "mtime": 1788995919.7507684,
+    "ast_hash": "976a3ad16dde77afb8a34cb8630b288b",
+    "semantic_hash": "976a3ad16dde77afb8a34cb8630b288b"
+  },
+  "/Users/femi/dev/hardhat/portal/supabase/local-test/00b_shim_auth_users.sql": {
+    "mtime": 1788995957.9356534,
+    "ast_hash": "9427cdf554191f609d3be17e499010f7",
+    "semantic_hash": "9427cdf554191f609d3be17e499010f7"
+  },
+  "/Users/femi/dev/hardhat/portal/supabase/local-test/01_seed_test_data.sql": {
+    "mtime": 1788996164.9042943,
+    "ast_hash": "c966cdd721c2b1450615e62afccf905e",
+    "semantic_hash": "c966cdd721c2b1450615e62afccf905e"
+  },
+  "/Users/femi/dev/hardhat/portal/supabase/local-test/reset_and_run.sh": {
+    "mtime": 1788997678.084691,
+    "ast_hash": "dc763f07644cad4b9197346ff17aa8fa",
+    "semantic_hash": "dc763f07644cad4b9197346ff17aa8fa"
+  },
+  "/Users/femi/dev/hardhat/portal/supabase/local-test/run_tests.sh": {
+    "mtime": 1788997775.4954956,
+    "ast_hash": "2fb90e5b92142348926504a0c82007a1",
+    "semantic_hash": "2fb90e5b92142348926504a0c82007a1"
+  },
+  "/Users/femi/dev/hardhat/portal/supabase/migrations/0001_schema.sql": {
+    "mtime": 1788987489.272266,
+    "ast_hash": "9713855cef757472bd52fc7f45ce30ea",
+    "semantic_hash": "9713855cef757472bd52fc7f45ce30ea"
+  },
+  "/Users/femi/dev/hardhat/portal/supabase/migrations/0002_rls.sql": {
+    "mtime": 1788987577.39575,
+    "ast_hash": "14e791462227d8f0e736da49a56196c9",
+    "semantic_hash": "14e791462227d8f0e736da49a56196c9"
+  },
+  "/Users/femi/dev/hardhat/portal/supabase/migrations/0003_claim_function.sql": {
+    "mtime": 1788987589.495325,
+    "ast_hash": "e51e2410aef07ac45ffbdbdc843dbb75",
+    "semantic_hash": "e51e2410aef07ac45ffbdbdc843dbb75"
+  },
+  "/Users/femi/dev/hardhat/portal/supabase/migrations/0004_heartbeat_function.sql": {
+    "mtime": 1788987652.7418797,
+    "ast_hash": "b1caa05de4dca26858c6e59442b8a25f",
+    "semantic_hash": "b1caa05de4dca26858c6e59442b8a25f"
+  },
+  "/Users/femi/dev/hardhat/portal/supabase/migrations/0005_provisioning_function.sql": {
+    "mtime": 1788931170.3984172,
+    "ast_hash": "f4c9582de1a70a8e992130b53c32883c",
+    "semantic_hash": "f4c9582de1a70a8e992130b53c32883c"
+  },
+  "/Users/femi/dev/hardhat/portal/supabase/migrations/0006_auth_throttle.sql": {
+    "mtime": 1788969058.3155625,
+    "ast_hash": "e3e0b722c5e5f18ddd5369a1c04215a3",
+    "semantic_hash": "e3e0b722c5e5f18ddd5369a1c04215a3"
+  },
+  "/Users/femi/dev/hardhat/portal/supabase/migrations/0007_org_management_functions.sql": {
+    "mtime": 1788995938.2044513,
+    "ast_hash": "e39733016eb29374867eed416fd748d8",
+    "semantic_hash": "e39733016eb29374867eed416fd748d8"
+  },
+  "/Users/femi/dev/hardhat/portal/supabase/migrations/0008_invite_signup_trigger.sql": {
+    "mtime": 1789000498.9817924,
+    "ast_hash": "3bf1098e9b636f959aeab6e089de7305",
+    "semantic_hash": "3bf1098e9b636f959aeab6e089de7305"
+  },
+  "/Users/femi/dev/hardhat/portal/supabase/migrations/0009_orphaned_org_admin_guard.sql": {
+    "mtime": 1788995842.4271083,
+    "ast_hash": "903d1119526379c3eb205ce97d16eec3",
+    "semantic_hash": "903d1119526379c3eb205ce97d16eec3"
+  },
+  "/Users/femi/dev/hardhat/portal/supabase/migrations/0010_list_org_members.sql": {
+    "mtime": 1788997669.6502564,
+    "ast_hash": "6913f807dd38b0c08b8870ed74b781bd",
+    "semantic_hash": "6913f807dd38b0c08b8870ed74b781bd"
+  },
+  "/Users/femi/dev/hardhat/portal/supabase/seed.sql": {
+    "mtime": 1789000741.9199429,
+    "ast_hash": "a2296799d3f52f73b60989c15b03205d",
+    "semantic_hash": "a2296799d3f52f73b60989c15b03205d"
+  },
+  "/Users/femi/dev/hardhat/portal/tsconfig.json": {
+    "mtime": 1788971482.1908052,
+    "ast_hash": "ee17fd1c97c735e9f3564e3f5251f125",
+    "semantic_hash": "ee17fd1c97c735e9f3564e3f5251f125"
+  },
+  "/Users/femi/dev/hardhat/voice-trigger/download_models.sh": {
+    "mtime": 1788728577.734053,
+    "ast_hash": "247311e1bde3436c6de68ae159375a31",
+    "semantic_hash": "247311e1bde3436c6de68ae159375a31"
+  },
+  "/Users/femi/dev/hardhat/voice-trigger/fix_audio.sh": {
+    "mtime": 1788730539.924523,
+    "ast_hash": "0a5d8d63cf01c8fa5a77e159f3f488a8",
+    "semantic_hash": "0a5d8d63cf01c8fa5a77e159f3f488a8"
+  },
+  "/Users/femi/dev/hardhat/voice-trigger/go.mod": {
+    "mtime": 1788670474.2707195,
+    "ast_hash": "c855224fd4d3094facf066e797423dd3",
+    "semantic_hash": "c855224fd4d3094facf066e797423dd3"
+  },
+  "/Users/femi/dev/hardhat/voice-trigger/install_go.sh": {
+    "mtime": 1788735832.1745644,
+    "ast_hash": "a7cbff9dde06d55deb89d16163815b94",
+    "semantic_hash": "a7cbff9dde06d55deb89d16163815b94"
+  },
+  "/Users/femi/dev/hardhat/voice-trigger/kws_listen.py": {
+    "mtime": 1788731189.228412,
+    "ast_hash": "e839e8965654b53790ccb831a7899544",
+    "semantic_hash": "e839e8965654b53790ccb831a7899544"
+  },
+  "/Users/femi/dev/hardhat/voice-trigger/main.go": {
+    "mtime": 1788737274.3324034,
+    "ast_hash": "23eb34f002d22b5c84c18066887ec2e5",
+    "semantic_hash": "23eb34f002d22b5c84c18066887ec2e5"
+  },
+  "/Users/femi/dev/hardhat/voice-trigger/mic_test.py": {
+    "mtime": 1788725933.871048,
+    "ast_hash": "4e087a9288c39b9554a47b22b8b69591",
+    "semantic_hash": "4e087a9288c39b9554a47b22b8b69591"
+  },
+  "/Users/femi/dev/hardhat/voice-trigger/setup_pi.sh": {
+    "mtime": 1788728549.9812396,
+    "ast_hash": "9f8a4750ef6c5ac274297bb9bb676b6c",
+    "semantic_hash": "9f8a4750ef6c5ac274297bb9bb676b6c"
+  },
+  "/Users/femi/dev/hardhat/wifi-onboarding/bind_linux.go": {
+    "mtime": 1788926149.2755663,
+    "ast_hash": "12542fd4c337223529d5dbd0322ba0e4",
+    "semantic_hash": "12542fd4c337223529d5dbd0322ba0e4"
+  },
+  "/Users/femi/dev/hardhat/wifi-onboarding/bind_other.go": {
+    "mtime": 1788926156.3561742,
+    "ast_hash": "3aeea50876a98ee1a155614bdca0d649",
+    "semantic_hash": "3aeea50876a98ee1a155614bdca0d649"
+  },
+  "/Users/femi/dev/hardhat/wifi-onboarding/go.mod": {
+    "mtime": 1788834864.2447035,
+    "ast_hash": "a2684cf161177d64594166825435ec83",
+    "semantic_hash": "a2684cf161177d64594166825435ec83"
+  },
+  "/Users/femi/dev/hardhat/wifi-onboarding/main.go": {
+    "mtime": 1788837697.483839,
+    "ast_hash": "d0caf375c47af76d3aca8f9b3bdc02a3",
+    "semantic_hash": "d0caf375c47af76d3aca8f9b3bdc02a3"
+  },
+  "/Users/femi/dev/hardhat/wifi-onboarding/network.go": {
+    "mtime": 1788926172.5638728,
+    "ast_hash": "ea1e4655ad02130543e94db466569f16",
+    "semantic_hash": "ea1e4655ad02130543e94db466569f16"
+  },
+  "/Users/femi/dev/hardhat/wifi-onboarding/portal.go": {
+    "mtime": 1788923997.535947,
+    "ast_hash": "3d162b2b08ceef7bda04986ab1bf2713",
+    "semantic_hash": "3d162b2b08ceef7bda04986ab1bf2713"
+  },
+  "/Users/femi/dev/hardhat/wifi-onboarding/setup_pi.sh": {
+    "mtime": 1788884141.5287607,
+    "ast_hash": "4cf9a805cf99786a0c952857779103e1",
+    "semantic_hash": "4cf9a805cf99786a0c952857779103e1"
+  },
+  "/Users/femi/dev/hardhat/README.md": {
+    "mtime": 1788672274.5576687,
+    "ast_hash": "f0d706dc92924e6154c058fcba52d57a",
+    "semantic_hash": "f0d706dc92924e6154c058fcba52d57a"
+  },
+  "/Users/femi/dev/hardhat/portal/AGENTS.md": {
+    "mtime": 1789000786.7735841,
+    "ast_hash": "01e8142356e15c3404e0d84c48187cd0",
+    "semantic_hash": "01e8142356e15c3404e0d84c48187cd0"
+  },
+  "/Users/femi/dev/hardhat/portal/CLAUDE.md": {
+    "mtime": 1789000786.7736301,
+    "ast_hash": "5c27369b226fcf2be8a6cfe52224e767",
+    "semantic_hash": "5c27369b226fcf2be8a6cfe52224e767"
+  },
+  "/Users/femi/dev/hardhat/portal/README.md": {
+    "mtime": 1788999745.1350505,
+    "ast_hash": "47d151051934114fb0a67f7aa4b852ed",
+    "semantic_hash": "47d151051934114fb0a67f7aa4b852ed"
+  },
+  "/Users/femi/dev/hardhat/portal/supabase/README.md": {
+    "mtime": 1789000765.8689468,
+    "ast_hash": "c6ace0513a9f245f37aeb1a27a64bb4c",
+    "semantic_hash": "c6ace0513a9f245f37aeb1a27a64bb4c"
+  },
+  "/Users/femi/dev/hardhat/portal/supabase/templates/confirm_signup.html": {
+    "mtime": 1789000271.1697464,
+    "ast_hash": "43fcb47909cc0322eaec92388f7b09b5",
+    "semantic_hash": "43fcb47909cc0322eaec92388f7b09b5"
+  },
+  "/Users/femi/dev/hardhat/portal/supabase/templates/invite_user.html": {
+    "mtime": 1789000281.95773,
+    "ast_hash": "2f63ad9ccd015c52277148c10d197ef2",
+    "semantic_hash": "2f63ad9ccd015c52277148c10d197ef2"
+  },
+  "/Users/femi/dev/hardhat/voice-trigger/README.md": {
+    "mtime": 1788726242.565587,
+    "ast_hash": "68679d1d1eda4492328bc504efd33e85",
+    "semantic_hash": "68679d1d1eda4492328bc504efd33e85"
+  },
+  "/Users/femi/dev/hardhat/wifi-onboarding/README.md": {
+    "mtime": 1788924035.5163095,
+    "ast_hash": "2b0641f9f3b563c4c0d84b7ea7c09865",
+    "semantic_hash": "2b0641f9f3b563c4c0d84b7ea7c09865"
+  },
+  "/Users/femi/dev/hardhat/wifi-onboarding/portal.html": {
+    "mtime": 1788835581.0950289,
+    "ast_hash": "0b47c12c8e2c32cd2a989944dcf697fe",
+    "semantic_hash": "0b47c12c8e2c32cd2a989944dcf697fe"
+  },
+  "/Users/femi/dev/hardhat/workflow.txt": {
+    "mtime": 1788668835.748359,
+    "ast_hash": "d87cb3e6b88a3cb517a505ace59b66af",
+    "semantic_hash": "d87cb3e6b88a3cb517a505ace59b66af"
+  },
+  "/Users/femi/dev/hardhat/portal/public/file.svg": {
+    "mtime": 1788971482.1859782,
+    "ast_hash": "d09f95206c3fa0bb9bd9fefabfd0ea71",
+    "semantic_hash": "d09f95206c3fa0bb9bd9fefabfd0ea71"
+  },
+  "/Users/femi/dev/hardhat/portal/public/globe.svg": {
+    "mtime": 1788971482.1862783,
+    "ast_hash": "2aaafa6a49b6563925fe440891e32717",
+    "semantic_hash": "2aaafa6a49b6563925fe440891e32717"
+  },
+  "/Users/femi/dev/hardhat/portal/public/next.svg": {
+    "mtime": 1788971482.1861806,
+    "ast_hash": "8e061864f388b47f33a1c3780831193e",
+    "semantic_hash": "8e061864f388b47f33a1c3780831193e"
+  },
+  "/Users/femi/dev/hardhat/portal/public/vercel.svg": {
+    "mtime": 1788971482.1860902,
+    "ast_hash": "c0af2f507b369b085b35ef4bbe3bcf1e",
+    "semantic_hash": "c0af2f507b369b085b35ef4bbe3bcf1e"
+  },
+  "/Users/femi/dev/hardhat/portal/public/window.svg": {
+    "mtime": 1788971482.1863737,
+    "ast_hash": "a2760511c65806022ad20adf74370ff3",
+    "semantic_hash": "a2760511c65806022ad20adf74370ff3"
+  },
+  "/Users/femi/dev/hardhat/AGENTS.md": {
+    "mtime": 1789006205.49545,
+    "ast_hash": "846bf9c3bef3bdac338eb7359644a749",
+    "semantic_hash": "846bf9c3bef3bdac338eb7359644a749"
+  }
+}
