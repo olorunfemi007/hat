@@ -36,6 +36,15 @@ sudo install -m 0644 "$SCRIPT_DIR/hardhat-heartbeat.service" /etc/systemd/system
 sudo systemctl daemon-reload
 sudo systemctl enable hardhat-heartbeat.service
 if sudo test -f /etc/hardhat/device.json; then
+    # Always re-assert this, regardless of whether the file was just
+    # installed by this script or was already present from an earlier
+    # run/manual transfer: install -m 0600 above only ever runs on the
+    # "didn't already exist" branch, so a pre-existing file (matched by
+    # content, never touched) can carry whatever permissions its transfer
+    # method left it with. Idempotent and harmless on the already-correct
+    # case.
+    sudo chmod 600 /etc/hardhat/device.json
+    sudo chown root:root /etc/hardhat/device.json
     sudo /usr/bin/python3 -B /opt/hardhat/device-agent/heartbeat.py --check-config
     sudo systemctl restart hardhat-heartbeat.service
     echo "Heartbeat service started. Logs: journalctl -u hardhat-heartbeat.service -f"
