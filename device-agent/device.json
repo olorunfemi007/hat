@@ -1,0 +1,8 @@
+{
+  "serial_number": "HH-1DED5-000001",
+  "hardware_serial": "000000004661ded5",
+  "device_identity_secret": "c203a680c439e31cbb5a9be0dfa73fd4327ec68f",
+  "supabase_url": "http://127.0.0.1:54321",
+  "publishable_key": "sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH",
+  "allow_http": true
+}
