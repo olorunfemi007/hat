@@ -81,7 +81,7 @@ supabase/
 
 Run migrations in numeric order — each one assumes the previous ones are
 already applied (`supabase db push` / `supabase migration up` do this
-automatically; manually, just `psql -f` them 0001 → 0011).
+automatically; manually, just `psql -f` them 0001 → 0012).
 
 **Why the new tenancy tables (`organization_members`, `user_active_org`,
 `organization_invites`) live in `0001_schema.sql` instead of a later 0007+
@@ -548,14 +548,12 @@ of that lifecycle: a `service_role`-only sweep (meant to be driven by
 `pg_cron`, a Vercel cron route, etc.) that flips devices whose
 `last_seen_at` has gone stale to `offline`.
 
-**Wiring note for the wifi-onboarding Go program:** its README explicitly
-scopes out past "the helmet is on the real Wi-Fi network" — no phone-home
-code exists there yet. `device_heartbeat(serial_number,
-device_identity_secret)` is the endpoint contract that code should POST
-against once written: `POST /rest/v1/rpc/device_heartbeat` with the anon
-key as the bearer token and `{"p_serial_number": "...",
-"p_device_identity_secret": "..."}` as the body, after the existing
-connectivity probe (the `generate_204` check in `network.go`) succeeds.
+**Pi integration:** [device-agent](../../device-agent/README.md) provisions a
+per-Pi identity file and sends heartbeats independently of Wi-Fi onboarding.
+Migration 0012 schedules the offline sweep every minute and authentication-log
+cleanup hourly using pg_cron. Public keys use the `apikey` header; legacy anon
+JWT keys additionally use `Authorization: Bearer`. Device credentials are never
+Supabase administrative keys.
 
 ### Anti-enumeration hardening: timing side-channel + throttle
 
@@ -846,3 +844,11 @@ need to:
 ## Member-list email compatibility (0011)
 
 Migration `0011_member_email_type.sql` casts `auth.users.email` to the declared `text` result of `list_org_members`. Apply it to databases that already ran 0010. The test shim uses `varchar(255)`, matching local Supabase, so the existing member-list assertions exercise the type conversion.
+
+## Device maintenance schedule (0012)
+
+`0012_device_maintenance.sql` enables Supabase pg_cron and schedules offline
+detection every minute (ten-minute last-seen threshold), plus hourly cleanup
+of auth failures older than one day. Unlike migrations 0001–0011 this requires
+the Supabase platform extension, so it is verified against the real local
+stack by `device-agent/tests/local_integration.py`, not the plain Postgres shim.

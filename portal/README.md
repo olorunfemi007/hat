@@ -100,7 +100,7 @@ won't be usable at runtime until a real Supabase project is configured per
 2. **Apply the migrations**: from `supabase/`, either `supabase db push`
    (recommended -- applies `migrations/` in order automatically) or,
    against any plain Postgres connection string, `psql -f` each file in
-   `migrations/` in numeric order (`0001` through `0011`). See
+   `migrations/` in numeric order (`0001` through `0012`). See
    `supabase/README.md` for details and for `seed.sql` (dev-only fixture
    devices, not for production).
 3. **Confirm email/password sign-up is enabled**: Dashboard ->
@@ -382,3 +382,9 @@ values -- there is no build-time network call to Supabase.
 Apply migration `0011_member_email_type.sql` to existing databases (or use the normal migration runner). It fixes member listing against Supabase's actual `varchar` email column without changing membership permissions. The local SQL harness now uses the same column type.
 
 Sign-in preserves local destinations and query parameters, including device claim links with `serial_number` and `claim_code`. External redirect destinations fall back to the dashboard.
+
+### Physical Pi identity and active/offline status
+
+Use [device-agent](../device-agent/README.md) to provision each Pi, install its
+identity, and run automatic heartbeats after Wi-Fi becomes available. Apply
+migration 0012 to enable scheduled offline detection in Supabase.

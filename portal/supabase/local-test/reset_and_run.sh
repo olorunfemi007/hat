@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # reset_and_run.sh -- drops and recreates testdb, applies the shim + all 11
 # migrations in order + fixed test fixtures, then runs the assertion suite.
-# This is the one command to run for a full, clean verification pass.
+# This verifies database behavior through 0011. Migration 0012 needs pg_cron;
+# device-agent/tests/local_integration.py verifies that on real local Supabase.
 set -euo pipefail
 
 CID="${CID:-hardhat_rls_test}"
