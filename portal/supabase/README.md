@@ -5,7 +5,7 @@ Level Security, tenancy (organizations/membership/invites), and the two
 non-human device-auth paths (device claiming, device heartbeat). Everything
 here is real, runnable SQL — nothing is pseudocode — and the RLS/SECURITY
 DEFINER logic has been **executed against a real Postgres in Docker**, not
-just read over, per the assertion suite under `local-test/` (137/137
+just read over, per the assertion suite under `local-test/` (140/140
 passing; see "Testing this locally" below for exactly how to reproduce
 that).
 
@@ -61,9 +61,13 @@ supabase/
 │   │                                    trigger that auto-promotes a replacement
 │   │                                    org_admin if a deletion (any path) would
 │   │                                    otherwise leave an org with zero admins
-│   └── 0010_list_org_members.sql       list_org_members() -- the only sanctioned
-│                                        way to resolve a fellow member's email,
-│                                        needed for any member-management UI
+│   ├── 0010_list_org_members.sql       list_org_members() -- the only sanctioned
+│   │                                    way to resolve a fellow member's email,
+│   │                                    needed for any member-management UI
+│   └── 0013_device_hardware_serial.sql  devices.hardware_serial column;
+│                                        provision_devices()/device_heartbeat()
+│                                        now require/verify it server-side,
+│                                        not just client-side in device.json
 ├── seed.sql                            dev/test device provisioning
 ├── local-test/
 │   ├── 00_supabase_shim.sql            emulates auth.jwt()/auth.uid() + the
@@ -81,7 +85,7 @@ supabase/
 
 Run migrations in numeric order — each one assumes the previous ones are
 already applied (`supabase db push` / `supabase migration up` do this
-automatically; manually, just `psql -f` them 0001 → 0012).
+automatically; manually, just `psql -f` them 0001 → 0013).
 
 **Why the new tenancy tables (`organization_members`, `user_active_org`,
 `organization_invites`) live in `0001_schema.sql` instead of a later 0007+
@@ -712,20 +716,21 @@ CID=hardhat_rls_test DB=testdb bash reset_and_run.sh
 ```
 
 `reset_and_run.sh` drops+recreates `testdb`, applies `00_supabase_shim.sql`
-and `00b_shim_auth_users.sql`, then all 11 migrations in order, then fixed-id
-test fixtures (`01_seed_test_data.sql`: real `auth.users` rows for every
-test persona, three orgs, memberships spanning both single- and multi-org
-users, sites, devices in known claim states), then runs `run_tests.sh` —
-**137 assertions**, actually executed as the relevant Postgres role with a
+and `00b_shim_auth_users.sql`, then every migration in order except `0012`
+(needs `pg_cron`, see below), then fixed-id test fixtures
+(`01_seed_test_data.sql`: real `auth.users` rows for every test persona,
+three orgs, memberships spanning both single- and multi-org users, sites,
+devices in known claim states), then runs `run_tests.sh` — **140
+assertions**, actually executed as the relevant Postgres role with a
 hand-set `request.jwt.claims`, covering:
 
 | Group | What it proves |
 |---|---|
-| A (anon) | Zero table access on all tables; the *only* things an anon key can do are call `device_heartbeat` (and only with a correct secret) |
+| A (anon) | Zero table access on all tables; the *only* things an anon key can do are call `device_heartbeat` (and only with a correct secret AND correct hardware_serial — a mismatch on either is rejected identically) |
 | B (authenticated, isolation) | Cross-org SELECT/INSERT/UPDATE blocked both directions on `sites`/`devices`/`storage_configs`; unclaimed devices are provably unlistable (`org_id IS NULL` → 0 rows) yet still owner-visible once claimed; hash columns unreadable even for one's own org; a user with no active org sees empty results, not errors; column grants block `org_id`/`status` writes even where RLS would otherwise allow the row; the composite FK blocks assigning a cross-org site |
 | C (claim flow) | Correct-code lookup/claim succeeds; wrong code, unknown serial, insufficient role, no active org, and cross-org site targets are all rejected with the expected error; double-claim is rejected |
 | D (offline sweep) | `authenticated` can't call the sweep; `service_role` can, and it actually flips stale devices |
-| E (service_role + constraints) | `service_role` sees across orgs (bypasses RLS) but **still** can't violate the composite FK or the claim-state CHECK — constraints aren't RLS and bind everyone; `provision_devices` works for `service_role` and is denied to `authenticated` |
+| E (service_role + constraints) | `service_role` sees across orgs (bypasses RLS) but **still** can't violate the composite FK, the claim-state CHECK, or the `hardware_serial` format CHECK — constraints aren't RLS and bind everyone; `provision_devices` works for `service_role`, records the real `hardware_serial` it was given, rejects mismatched-length serial/hardware-serial arrays, and is denied to `authenticated` |
 | F (auth throttle) | 10 failed attempts against one serial blocks the 11th, even with the correct credential; a different serial is unaffected (per-serial, not global); `cleanup_old_auth_failures` is `service_role`-only and actually deletes |
 | G (create_organization) | A user with zero memberships can create an org and is atomically made its `org_admin` with it set as their active org; blank names rejected; `anon` denied |
 | H (invites + signup trigger) | Inviting a new email records a pending invite; inviting an email with an existing account adds membership immediately with no invite row; duplicate/already-a-member invites rejected; a real `auth.users` INSERT with a matching pending invite creates a real membership and marks the invite accepted; a signup with **no** matching invite is a silent no-op; revocation works and is org_admin-only; non-admins/other orgs can't see or act on an org's pending invites |
@@ -733,11 +738,12 @@ hand-set `request.jwt.claims`, covering:
 | J (role change / removal) | Role changes and removal are org_admin-only (or self-removal); the "no org with zero `org_admin`s" invariant holds for both demotion and removal, including via self-service; removing a member correctly clears their active-org pointer if it pointed at that org |
 | K (membership-list isolation) | A non-member of an org sees none of its `organization_members` rows and cannot raw-INSERT/UPDATE them; `anon` has zero access to any of the three tenancy tables |
 | L (orphaned-admin auto-promotion) | Simulating an account-deletion CASCADE (a raw `DELETE` on `organization_members`, not a call through `remove_member()`) against an org's sole admin auto-promotes the earliest-joined remaining member, leaving exactly one admin — not zero, not two |
+| M (list_org_members) | A member can list their org's members with emails attached; a non-member and `anon` cannot |
 
 Sample output from the last full run (reproducible via the command above):
 
 ```
-RESULTS: 137 passed, 0 failed (total 137)
+RESULTS: 140 passed, 0 failed (total 140)
 ```
 
 To re-run after changing a migration, just re-run `reset_and_run.sh` — it's
@@ -769,19 +775,28 @@ appears.
 
 ## Provisioning real devices
 
-`provision_devices(serial_numbers text[])` (`0005_provisioning_function.sql`)
-is `service_role`-only and takes real serial numbers (a hardware batch's own
-serials/asset tags — it does not invent them). For each serial it generates
-two independent 160-bit random secrets (`claim_code`,
+`provision_devices(serial_numbers text[], hardware_serials text[])`
+(`0005_provisioning_function.sql`, signature updated by
+`0013_device_hardware_serial.sql`) is `service_role`-only and takes real
+serial numbers (a hardware batch's own serials/asset tags — it does not
+invent them) alongside each unit's real physical hardware serial, as two
+parallel arrays of the same length. Both are required: `serial_number` may
+be a distinct human-facing asset tag (device-agent's `--serial` flag
+supports this), but `hardware_serial` must be the actual
+`/proc/device-tree/serial-number` value for that specific unit — it's
+verified server-side on every `device_heartbeat()` call afterward, not just
+checked once, client-side, in `device.json` (see `0013`'s header for the
+real leaked-credential incident that motivated requiring this). For each
+pair it generates two independent 160-bit random secrets (`claim_code`,
 `device_identity_secret` — distinct entropy sources, never derived from
-each other or the serial), stores only their bcrypt hashes, and returns the
-plaintext **exactly once**:
+each other, the serial, or the hardware serial), stores only their bcrypt
+hashes, and returns the plaintext **exactly once**:
 
 ```sql
-select * from public.provision_devices(array[
-  'PI-SN-4C1A9F2B',
-  'PI-SN-4C1A9F2C'
-]);
+select * from public.provision_devices(
+  array['PI-SN-4C1A9F2B', 'PI-SN-4C1A9F2C'],
+  array['000000001234abcd', '000000001234abce']
+);
 ```
 
 Run this from a trusted operator session (`psql`/SQL editor) with the

@@ -61,7 +61,8 @@ class HeartbeatTests(unittest.TestCase):
         for status in ["unclaimed", "active"]:
             with patch.object(agent, "rpc", return_value=[{"serial_number": "HAT-001", "status": status, "last_seen_at": "2026-09-10T00:00:00Z"}]) as rpc:
                 self.assertEqual(agent.heartbeat(config()), status)
-                self.assertEqual(rpc.call_args.args[3], {"p_serial_number": "HAT-001", "p_device_identity_secret": "a" * 40})
+                self.assertEqual(rpc.call_args.args[3], {"p_serial_number": "HAT-001", "p_device_identity_secret": "a" * 40,
+                                                          "p_hardware_serial": "000000001234abcd"})
 
     def test_http_200_empty_rows_is_rejection(self):
         with patch.object(agent, "rpc", return_value=[]), self.assertRaises(agent.HeartbeatError) as failure:

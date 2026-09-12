@@ -138,6 +138,7 @@ def heartbeat(config, timeout=10):
     rows = rpc(config["supabase_url"], config["publishable_key"], "device_heartbeat", {
         "p_serial_number": config["serial_number"],
         "p_device_identity_secret": config["device_identity_secret"],
+        "p_hardware_serial": config["hardware_serial"],
     }, timeout)
     if rows == []:
         # SQL intentionally returns HTTP 200 + [] for rejected/throttled credentials.

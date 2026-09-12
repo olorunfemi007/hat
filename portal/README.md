@@ -21,7 +21,7 @@ webhook. Native Supabase Auth has users and JWTs, nothing org-shaped, so all
 of that is now built by hand: `supabase/migrations/0001_schema.sql` onward
 define `organizations`/`organization_members`/`user_active_org`/
 `organization_invites` and the RPCs that manage them (see
-`supabase/README.md` for the full design and the 137-assertion test suite
+`supabase/README.md` for the full design and the 140-assertion test suite
 that verifies it), and this app's `src/` is a from-scratch rewrite of every
 Clerk-provided UI surface (`<SignIn>`, `<SignUp>`, `<OrganizationSwitcher>`,
 `<OrganizationProfile>`, the `organization.created` webhook) against those

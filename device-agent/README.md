@@ -40,7 +40,7 @@ Use a trusted operator workstation with access to the Supabase secret/service-ro
    bash device-agent/setup_pi.sh --config /path/to/device.json
    ```
 
-   Installation checks the real hardware serial before accepting the file, installs the config as root-owned `/etc/hardhat/device.json` (0600), and starts/enables `hardhat-heartbeat.service`. It refuses to replace a different existing identity. After verifying installation, remove the staging copy through your normal credential-handling process.
+   Installation checks the real hardware serial before accepting the file, installs the config at `/etc/hardhat/device.json` (0600, owned by the dedicated `hardhat-heartbeat` system user the installer creates -- not root; the service runs as that user directly rather than `DynamicUser=yes`+`LoadCredential=`, see `hardhat-heartbeat.service`'s header for why), and starts/enables `hardhat-heartbeat.service`. It refuses to replace a different existing identity. After verifying installation, remove the staging copy through your normal credential-handling process.
 
    `wifi-onboarding/setup_pi.sh` also installs this companion service, but it stays inactive until a device config exists. You can install/configure the companion separately without changing working Wi-Fi setup.
 
@@ -55,7 +55,7 @@ No heartbeat for >10 minutes         offline at the next minute sweep
 Next valid heartbeat                 active again
 ```
 
-Online discovery does not establish ownership. The public/anon key identifies the project; the serial plus device identity secret authenticates the individual Pi. The agent never receives organization/admin credentials. A copied configuration is rejected when the hardware serial does not match. This is an operational pairing check, not tamper-proof hardware attestation against someone with root access.
+Online discovery does not establish ownership. The public/anon key identifies the project; the serial plus device identity secret authenticates the individual Pi. The agent never receives organization/admin credentials. A copied configuration is rejected locally when the hardware serial in `device.json` doesn't match the Pi it's running on, and separately rejected by the server on every heartbeat if the hardware serial doesn't match what `provision_devices()` recorded for that serial number (`0013_device_hardware_serial.sql`) -- the local check alone was insufficient in practice: a `device.json` copied off a Pi and used from anywhere else used to authenticate fine as long as `device_identity_secret` matched, since only the client checked hardware_serial at all. Neither check is tamper-proof hardware attestation against someone with root access on the source Pi.
 
 The agent uses HTTPS and refuses redirects to avoid handing the credential to a captive portal. Opaque publishable keys go in `apikey`; legacy anon JWT keys also use `Authorization`. HTTP is available only with the explicit `--allow-http` provisioning flag for trusted local development. For a Pi testing against your laptop, use the laptop's reachable LAN URL, not `localhost` (which would point to the Pi). Never ship HTTP-enabled configuration.
 
@@ -63,7 +63,7 @@ The systemd service runs as a fixed, unprivileged system user (`hardhat-heartbea
 
 ## Install the server schedule
 
-Apply all Supabase migrations through `0012_device_maintenance.sql` using your normal migration workflow. For a database that already has migrations 0001–0011, apply only 0012. It enables `pg_cron` and creates two named jobs:
+Apply all Supabase migrations through `0013_device_hardware_serial.sql` using your normal migration workflow. For a database that already has migrations 0001–0011, apply 0012 and 0013. Migration 0012 enables `pg_cron` and creates two named jobs:
 
 - `hardhat-device-offline`: every minute; marks active devices offline when `last_seen_at` is older than ten minutes. Detection therefore takes roughly 10–11 minutes.
 - `hardhat-device-auth-cleanup`: hourly at minute 17; removes authentication-failure records older than 24 hours.
@@ -109,7 +109,7 @@ python3 -m unittest discover -s device-agent/tests -v
 bash -n device-agent/setup_pi.sh wifi-onboarding/setup_pi.sh
 ```
 
-With local Supabase running, migrations applied through 0012, and `portal/.env.local` configured:
+With local Supabase running, migrations applied through 0013, and `portal/.env.local` configured:
 
 ```bash
 python3 device-agent/tests/local_integration.py

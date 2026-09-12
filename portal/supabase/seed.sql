@@ -69,23 +69,37 @@ $$;
 select 'Seeding dev devices -- copy the plaintext columns below now, they will not be shown again.' as notice;
 
 select *
-from public.provision_devices(array[
-  'DEV-HARDHAT-0001',
-  'DEV-HARDHAT-0002',
-  'DEV-HARDHAT-0003',
-  'DEV-HARDHAT-0004',
-  'DEV-HARDHAT-0005'
-]);
+from public.provision_devices(
+  array[
+    'DEV-HARDHAT-0001',
+    'DEV-HARDHAT-0002',
+    'DEV-HARDHAT-0003',
+    'DEV-HARDHAT-0004',
+    'DEV-HARDHAT-0005'
+  ],
+  -- Fake but validly-shaped (16 lowercase hex chars) -- these fixtures have
+  -- no real Pi behind them. A real batch passes each unit's actual
+  -- /proc/device-tree/serial-number value here instead (see the worked
+  -- example below).
+  array[
+    '00000000000c0001',
+    '00000000000c0002',
+    '00000000000c0003',
+    '00000000000c0004',
+    '00000000000c0005'
+  ]
+);
 
 -- ---------------------------------------------------------------------------
 -- Worked example for a REAL hardware batch (not executed by this file --
 -- copy/adapt into your own one-off operator session):
 --
---   select * from public.provision_devices(array[
---     'PI-SN-4C1A9F2B',
---     'PI-SN-4C1A9F2C',
---     'PI-SN-4C1A9F2D'
---   ]);
+--   select * from public.provision_devices(
+--     array['PI-SN-4C1A9F2B', 'PI-SN-4C1A9F2C', 'PI-SN-4C1A9F2D'],
+--     array['<hw serial 1>', '<hw serial 2>', '<hw serial 3>']
+--   );
+--   -- each hardware serial: tr -d '\000\n' < /proc/device-tree/serial-number
+--   -- on that specific unit, lowercased, 16 hex chars.
 --
 -- Capture the result set (psql \copy, or your SQL client's export) into
 -- whatever produces the physical labels / flashes the device image, then

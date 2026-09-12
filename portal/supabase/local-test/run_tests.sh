@@ -148,12 +148,13 @@ expect_err  "A3 anon cannot SELECT devices"               "permission denied" an
 expect_err  "A4 anon cannot SELECT storage_configs"       "permission denied" anon "" "select count(*) from public.storage_configs;"
 expect_err  "A5 anon cannot EXEC lookup_device_by_claim_code" "permission denied" anon "" "select * from public.lookup_device_by_claim_code('DEV-ALPHA-001','claimcode-alpha-001');"
 expect_err  "A6 anon cannot EXEC claim_device"            "permission denied" anon "" "select * from public.claim_device('DEV-ALPHA-001','claimcode-alpha-001',null,null);"
-expect_ok   "A7 anon device_heartbeat correct creds succeeds"  anon "" "select public.device_heartbeat('DEV-ALPHA-002','identity-alpha-002');"
-expect_rows "A7b heartbeat set status=active"             "active" anon "" "select status from public.device_heartbeat('DEV-ALPHA-002','identity-alpha-002');"
-expect_rows "A8 anon device_heartbeat wrong secret fails (zero rows, not an exception - see 0004 comments)" "0" anon "" "select count(*) from public.device_heartbeat('DEV-ALPHA-002','wrong-secret');"
-expect_rows "A9 heartbeat on unclaimed device stays unclaimed" "unclaimed" anon "" "select status from public.device_heartbeat('DEV-ALPHA-001','identity-alpha-001');"
+expect_ok   "A7 anon device_heartbeat correct creds succeeds"  anon "" "select public.device_heartbeat('DEV-ALPHA-002','identity-alpha-002','00000000000a0003');"
+expect_rows "A7b heartbeat set status=active"             "active" anon "" "select status from public.device_heartbeat('DEV-ALPHA-002','identity-alpha-002','00000000000a0003');"
+expect_rows "A8 anon device_heartbeat wrong secret fails (zero rows, not an exception - see 0004 comments)" "0" anon "" "select count(*) from public.device_heartbeat('DEV-ALPHA-002','wrong-secret','00000000000a0003');"
+expect_rows "A8b anon device_heartbeat wrong hardware_serial fails (zero rows, same as wrong secret - see 0013 comments)" "0" anon "" "select count(*) from public.device_heartbeat('DEV-ALPHA-002','identity-alpha-002','ffffffffffffffff');"
+expect_rows "A9 heartbeat on unclaimed device stays unclaimed" "unclaimed" anon "" "select status from public.device_heartbeat('DEV-ALPHA-001','identity-alpha-001','00000000000a0001');"
 expect_err  "A10 anon cannot EXEC mark_stale_devices_offline" "permission denied" anon "" "select * from public.mark_stale_devices_offline();"
-expect_err  "A11 anon cannot EXEC provision_devices"      "permission denied" anon "" "select * from public.provision_devices(array['X']);"
+expect_err  "A11 anon cannot EXEC provision_devices"      "permission denied" anon "" "select * from public.provision_devices(array['X'], array['00000000000c0000']);"
 
 echo "=== GROUP B: authenticated, org isolation ==="
 expect_rows "B1 alpha admin sees only own org row"        "1" authenticated "$ALPHA_ADMIN" "select count(*) from public.organizations;"
@@ -197,11 +198,13 @@ expect_rows "D1b bravo's stale device is now offline"      "offline" service_rol
 
 echo "=== GROUP E: service_role bypass + constraints still hold ==="
 expect_rows "E1 service_role sees rows across both orgs"   "2" service_role "" "select count(distinct org_id) from public.devices where org_id is not null;"
-expect_err  "E2 composite FK blocks cross-org site_id even for service_role" "foreign key" service_role "" "insert into public.devices (org_id, site_id, serial_number, claim_code_hash, device_identity_hash, status, claimed_at, claimed_by_user_id) values ('00000000-0000-0000-0000-0000000000a1','00000000-0000-0000-0000-0000000010b1','BAD-DEVICE-1','x','y','claimed', now(), null);"
-expect_err  "E3 claim-state CHECK blocks unclaimed-with-org_id even for service_role" "devices_claim_state_chk" service_role "" "insert into public.devices (org_id, serial_number, claim_code_hash, device_identity_hash, status) values ('00000000-0000-0000-0000-0000000000a1','BAD-DEVICE-2','x','y','unclaimed');"
-expect_ok   "E4 provision_devices (service_role) creates a fresh device"  service_role "" "select * from public.provision_devices(array['BATCH-TEST-0001']);"
+expect_err  "E2 composite FK blocks cross-org site_id even for service_role" "foreign key" service_role "" "insert into public.devices (org_id, site_id, serial_number, hardware_serial, claim_code_hash, device_identity_hash, status, claimed_at, claimed_by_user_id) values ('00000000-0000-0000-0000-0000000000a1','00000000-0000-0000-0000-0000000010b1','BAD-DEVICE-1','00000000000e0003','x','y','claimed', now(), null);"
+expect_err  "E3 claim-state CHECK blocks unclaimed-with-org_id even for service_role" "devices_claim_state_chk" service_role "" "insert into public.devices (org_id, serial_number, hardware_serial, claim_code_hash, device_identity_hash, status) values ('00000000-0000-0000-0000-0000000000a1','BAD-DEVICE-2','00000000000e0004','x','y','unclaimed');"
+expect_ok   "E4 provision_devices (service_role) creates a fresh device"  service_role "" "select * from public.provision_devices(array['BATCH-TEST-0001'], array['00000000000e0001']);"
 expect_rows "E4b provisioned device row actually exists, unclaimed"  "1" service_role "" "select count(*) from public.devices where serial_number = 'BATCH-TEST-0001' and status = 'unclaimed';"
-expect_err  "E5 authenticated cannot call provision_devices"  "permission denied" authenticated "$ALPHA_ADMIN" "select * from public.provision_devices(array['X']);"
+expect_rows "E4c provisioned device row recorded the real hardware_serial" "00000000000e0001" service_role "" "select hardware_serial from public.devices where serial_number = 'BATCH-TEST-0001';"
+expect_err  "E4d provision_devices rejects mismatched array lengths" "same length" service_role "" "select * from public.provision_devices(array['BATCH-TEST-0002','BATCH-TEST-0003'], array['00000000000e0002']);"
+expect_err  "E5 authenticated cannot call provision_devices"  "permission denied" authenticated "$ALPHA_ADMIN" "select * from public.provision_devices(array['X'], array['00000000000c0000']);"
 
 echo "=== GROUP F: auth throttle (0004/0006) ==="
 # Drive 10 failed heartbeat attempts against a dedicated serial (wrong
@@ -209,12 +212,12 @@ echo "=== GROUP F: auth throttle (0004/0006) ==="
 # throttle in device_heartbeat/lookup_device_by_claim_code/claim_device
 # counts. Not asserted individually; F1 below is the real check.
 for i in $(seq 1 10); do
-  run anon "" "select public.device_heartbeat('DEV-THROTTLE-001','wrong-secret-$i');" >/dev/null
+  run anon "" "select public.device_heartbeat('DEV-THROTTLE-001','wrong-secret-$i','00000000000f0001');" >/dev/null
 done
 expect_rows "F1 heartbeat throttled after 10 failures, even with the CORRECT secret (zero rows)" "0" anon "" \
-  "select count(*) from public.device_heartbeat('DEV-THROTTLE-001','identity-throttle-001');"
+  "select count(*) from public.device_heartbeat('DEV-THROTTLE-001','identity-throttle-001','00000000000f0001');"
 expect_ok   "F2 throttle is per-serial, not global - a different device's heartbeat still works" \
-  anon "" "select public.device_heartbeat('DEV-ALPHA-002','identity-alpha-002');"
+  anon "" "select public.device_heartbeat('DEV-ALPHA-002','identity-alpha-002','00000000000a0003');"
 expect_rows "F3 device_auth_failures actually has >=10 rows for the throttled serial" "t" service_role "" \
   "select (count(*) >= 10) from public.device_auth_failures where serial_number = 'DEV-THROTTLE-001';"
 

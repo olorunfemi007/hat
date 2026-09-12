@@ -97,13 +97,16 @@ insert into public.sites (id, org_id, name, address) values
 --   DEV-ALPHA-001  claim=claimcode-alpha-001   identity=identity-alpha-001
 --   DEV-ALPHA-002  claim=claimcode-alpha-002   identity=identity-alpha-002  (pre-claimed into org_alpha, active)
 --   DEV-UNCLAIMED  claim=claimcode-unclaimed   identity=identity-unclaimed (stays unclaimed)
-insert into public.devices (id, serial_number, claim_code_hash, device_identity_hash, status)
+-- hardware_serial values below are fake-but-validly-shaped (16 lowercase
+-- hex chars) fixture data, matching devices_hardware_serial_format_chk
+-- (0013) -- none of these rows have real physical hardware behind them.
+insert into public.devices (id, serial_number, hardware_serial, claim_code_hash, device_identity_hash, status)
 values
-  ('00000000-0000-0000-0000-0000000020a1', 'DEV-ALPHA-001',
+  ('00000000-0000-0000-0000-0000000020a1', 'DEV-ALPHA-001', '00000000000a0001',
     extensions.crypt('claimcode-alpha-001', extensions.gen_salt('bf', 4)),
     extensions.crypt('identity-alpha-001', extensions.gen_salt('bf', 4)),
     'unclaimed'),
-  ('00000000-0000-0000-0000-0000000020a2', 'DEV-UNCLAIMED',
+  ('00000000-0000-0000-0000-0000000020a2', 'DEV-UNCLAIMED', '00000000000a0002',
     extensions.crypt('claimcode-unclaimed', extensions.gen_salt('bf', 4)),
     extensions.crypt('identity-unclaimed', extensions.gen_salt('bf', 4)),
     'unclaimed');
@@ -112,13 +115,14 @@ values
 -- isolation + heartbeat tests. claimed_by_user_id is now a real auth.users
 -- uuid (alpha_admin) rather than a Clerk-shaped text id.
 insert into public.devices (
-  id, org_id, site_id, serial_number, claim_code_hash, device_identity_hash,
+  id, org_id, site_id, serial_number, hardware_serial, claim_code_hash, device_identity_hash,
   status, claimed_at, claimed_by_user_id, display_name
 ) values (
   '00000000-0000-0000-0000-0000000020a3',
   '00000000-0000-0000-0000-0000000000a1',
   '00000000-0000-0000-0000-0000000010a1',
   'DEV-ALPHA-002',
+  '00000000000a0003',
   extensions.crypt('claimcode-alpha-002', extensions.gen_salt('bf', 4)),
   extensions.crypt('identity-alpha-002', extensions.gen_salt('bf', 4)),
   'active',
@@ -130,13 +134,14 @@ insert into public.devices (
 -- A stale-but-active device in org_bravo, to exercise
 -- mark_stale_devices_offline().
 insert into public.devices (
-  id, org_id, site_id, serial_number, claim_code_hash, device_identity_hash,
+  id, org_id, site_id, serial_number, hardware_serial, claim_code_hash, device_identity_hash,
   status, claimed_at, claimed_by_user_id, last_seen_at, display_name
 ) values (
   '00000000-0000-0000-0000-0000000020b1',
   '00000000-0000-0000-0000-0000000000b1',
   '00000000-0000-0000-0000-0000000010b1',
   'DEV-BRAVO-001',
+  '00000000000b0001',
   extensions.crypt('claimcode-bravo-001', extensions.gen_salt('bf', 4)),
   extensions.crypt('identity-bravo-001', extensions.gen_salt('bf', 4)),
   'active',
@@ -149,13 +154,13 @@ insert into public.devices (
 -- Dedicated devices for the throttle tests (Group F) - kept separate from
 -- the devices Group C's claim-flow assertions depend on, so repeatedly
 -- failing auth against these doesn't change state Group C relies on.
-insert into public.devices (id, serial_number, claim_code_hash, device_identity_hash, status)
+insert into public.devices (id, serial_number, hardware_serial, claim_code_hash, device_identity_hash, status)
 values
-  ('00000000-0000-0000-0000-0000000020f1', 'DEV-THROTTLE-001',
+  ('00000000-0000-0000-0000-0000000020f1', 'DEV-THROTTLE-001', '00000000000f0001',
     extensions.crypt('claimcode-throttle-001', extensions.gen_salt('bf', 4)),
     extensions.crypt('identity-throttle-001', extensions.gen_salt('bf', 4)),
     'unclaimed'),
-  ('00000000-0000-0000-0000-0000000020f2', 'DEV-THROTTLE-CLAIM-001',
+  ('00000000-0000-0000-0000-0000000020f2', 'DEV-THROTTLE-CLAIM-001', '00000000000f0002',
     extensions.crypt('claimcode-throttle-claim-001', extensions.gen_salt('bf', 4)),
     extensions.crypt('identity-throttle-claim-001', extensions.gen_salt('bf', 4)),
     'unclaimed');

@@ -37,7 +37,8 @@ def provision(url, public_key, admin_key, hardware, serial, portal_url, director
     # Reserve a private, durable recovery record BEFORE making the RPC. A network
     # timeout can occur after commit: never automatically retry provisioning.
     write_private(directory / "INCOMPLETE.txt", "Provisioning may have committed. Do not retry blindly.\n")
-    rows = rpc(url, admin_key, "provision_devices", {"p_serial_numbers": [serial]}, timeout=30)
+    rows = rpc(url, admin_key, "provision_devices",
+              {"p_serial_numbers": [serial], "p_hardware_serials": [hardware]}, timeout=30)
     # Preserve the one-time result before any further processing.
     write_private(directory / "provisioning-result.json", json.dumps(rows, indent=2) + "\n")
     if (not isinstance(rows, list) or len(rows) != 1 or not isinstance(rows[0], dict)

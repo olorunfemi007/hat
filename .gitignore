@@ -1,0 +1,6 @@
+# Real device credentials -- provision_device.py writes these; never commit them
+device-agent/device.json
+device-agent/*/device.json
+**/claim-label.txt
+**/provisioning-result.json
+**/INCOMPLETE.txt
