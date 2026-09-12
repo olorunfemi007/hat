@@ -6,9 +6,21 @@ ConditionPathExists=/etc/hardhat/device.json
 
 [Service]
 Type=simple
-DynamicUser=yes
-LoadCredential=device.json:/etc/hardhat/device.json
-ExecStart=/usr/bin/python3 -B /opt/hardhat/device-agent/heartbeat.py --config %d/device.json
+# A static system user, not DynamicUser=yes+LoadCredential=: the latter was
+# never actually run on real Raspberry Pi hardware before shipping (see
+# portal/audit/2026-09-10-device-agent.md's own "No physical Pi was accessed
+# or changed in this session"), and on real hardware it produced a config
+# rejected as not-private (mode 0600/0400) no matter how /etc/hardhat/device.json
+# itself was chmod'd -- LoadCredential's staged copy at %d/device.json, not
+# the source file, is what heartbeat.py actually opens, and its permissions
+# didn't behave as documented on that system's systemd. A fixed system user
+# that directly owns the file sidesteps that indirection entirely: setup_pi.sh
+# can chown/chmod the one real file this service ever reads, and verify with
+# `sudo -u hardhat-heartbeat` at install time that access actually works,
+# rather than only finding out when the service fails to start.
+User=hardhat-heartbeat
+Group=hardhat-heartbeat
+ExecStart=/usr/bin/python3 -B /opt/hardhat/device-agent/heartbeat.py --config /etc/hardhat/device.json
 Restart=on-failure
 RestartSec=10
 RestartPreventExitStatus=78

@@ -59,7 +59,7 @@ Online discovery does not establish ownership. The public/anon key identifies th
 
 The agent uses HTTPS and refuses redirects to avoid handing the credential to a captive portal. Opaque publishable keys go in `apikey`; legacy anon JWT keys also use `Authorization`. HTTP is available only with the explicit `--allow-http` provisioning flag for trusted local development. For a Pi testing against your laptop, use the laptop's reachable LAN URL, not `localhost` (which would point to the Pi). Never ship HTTP-enabled configuration.
 
-The systemd service uses a dynamic unprivileged user and `LoadCredential` to read the root-owned config. Logs report status/retry reasons without printing keys, claim codes, identity secrets, or upstream response bodies. Rejected credentials (including HTTP 200 with an empty RPC result) back off for over 15 minutes to respect the database throttle window. Correct the provisioning/config and restart the service after an identity rejection.
+The systemd service runs as a fixed, unprivileged system user (`hardhat-heartbeat`, created by `setup_pi.sh`) that directly owns `/etc/hardhat/device.json` (mode 0600). An earlier version used `DynamicUser=yes` with `LoadCredential=` instead; that combination was never actually run on real Pi hardware before shipping, and on real hardware it left the service unable to start (`heartbeat.py` rejected its own staged config as insufficiently private, regardless of `/etc/hardhat/device.json`'s own permissions). `setup_pi.sh` now verifies real access at install time by running the config check as `hardhat-heartbeat` itself, not root, so a permission problem is caught immediately rather than only surfacing as a failed service start. Logs report status/retry reasons without printing keys, claim codes, identity secrets, or upstream response bodies. Rejected credentials (including HTTP 200 with an empty RPC result) back off for over 15 minutes to respect the database throttle window. Correct the provisioning/config and restart the service after an identity rejection.
 
 ## Install the server schedule
 
@@ -91,8 +91,11 @@ On the Pi:
 ```bash
 sudo systemctl status hardhat-heartbeat.service
 sudo journalctl -u hardhat-heartbeat.service -f
-sudo python3 -B /opt/hardhat/device-agent/heartbeat.py --check-config
-sudo python3 -B /opt/hardhat/device-agent/heartbeat.py --once
+# Run as hardhat-heartbeat, not root -- root can read the config file
+# regardless of its ownership, so checking as root can pass even when the
+# service (which runs as hardhat-heartbeat) would fail to start.
+sudo -u hardhat-heartbeat python3 -B /opt/hardhat/device-agent/heartbeat.py --check-config
+sudo -u hardhat-heartbeat python3 -B /opt/hardhat/device-agent/heartbeat.py --once
 ```
 
 After claiming, refresh the portal's Devices page to see the next heartbeat reflected. The current portal does not subscribe to live status updates.
