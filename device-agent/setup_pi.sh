@@ -41,12 +41,19 @@ if [ -n "$CONFIG_SOURCE" ]; then
 fi
 sudo install -d -m 0755 /opt/hardhat/device-agent /etc/hardhat
 sudo install -m 0644 "$SCRIPT_DIR/heartbeat.py" "$SCRIPT_DIR/README.md" /opt/hardhat/device-agent/
+sudo install -m 0755 "$SCRIPT_DIR/import-device-json.sh" /opt/hardhat/device-agent/
 if [ -n "$CONFIG_SOURCE" ] && ! sudo test -e /etc/hardhat/device.json; then
     sudo install -m 0600 -o hardhat-heartbeat -g hardhat-heartbeat "$CONFIG_SOURCE" /etc/hardhat/device.json
 fi
-sudo install -m 0644 "$SCRIPT_DIR/hardhat-heartbeat.service" /etc/systemd/system/
+sudo install -m 0644 "$SCRIPT_DIR/hardhat-heartbeat.service" "$SCRIPT_DIR/hardhat-device-import.service" /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable hardhat-heartbeat.service
+# hardhat-device-import.service is enabled unconditionally, even with no
+# --config given now: this is exactly the golden-image-prep case (see
+# device-agent/README.md's "Zero-touch provisioning" section) -- baked in
+# once here, it then runs on every future boot of every unit cloned from
+# this image, importing whatever device.json an operator drops on that
+# specific unit's boot partition at flash time.
+sudo systemctl enable hardhat-heartbeat.service hardhat-device-import.service
 if sudo test -f /etc/hardhat/device.json; then
     # Always re-assert this, regardless of whether the file was just
     # installed by this script or was already present from an earlier

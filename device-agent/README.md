@@ -44,6 +44,24 @@ Use a trusted operator workstation with access to the Supabase secret/service-ro
 
    `wifi-onboarding/setup_pi.sh` also installs this companion service, but it stays inactive until a device config exists. You can install/configure the companion separately without changing working Wi-Fi setup.
 
+## Zero-touch provisioning (golden image + per-unit device.json at flash time)
+
+The manual flow above (SSH in, transfer `device.json`, run `setup_pi.sh --config`) doesn't scale past a handful of units. For a batch, prepare one golden image once -- run `setup_pi.sh` on it with **no** `--config` (installs the agent, both services enabled, both correctly inactive since `/etc/hardhat/device.json` doesn't exist yet) -- then, per unit:
+
+1. Flash the identical golden image to that unit's SD card.
+2. Provision that specific unit (`provision_device.py --hardware-serial <that unit's real serial> ...`, per "Provision one physical Pi" above), producing its own `device.json`.
+3. Before first boot, drop that `device.json` onto the card's boot partition -- the FAT32 partition every OS can mount and write to directly, no special tooling needed (the same partition Raspberry Pi OS already uses for headless Wi-Fi/SSH setup tricks like `wpa_supplicant.conf`):
+   ```bash
+   cp device.json /Volumes/bootfs/device.json   # macOS; the boot partition's mount point/label can vary by imaging tool and Raspberry Pi OS version -- check what actually appears after flashing
+   ```
+4. Boot the unit. `hardhat-device-import.service` (installed and enabled by `setup_pi.sh`, ordered `Before=hardhat-heartbeat.service`) runs `import-device-json.sh` automatically, before the heartbeat service ever starts:
+   - No file on the boot partition -- no-op (this is what every *subsequent* boot looks like, and what a unit provisioned the manual way looks like too).
+   - A valid file, matching this unit's actual hardware serial, and no identity already installed -- installs it as `/etc/hardhat/device.json` with the same ownership/permissions `setup_pi.sh --config` would set, then deletes it from the boot partition (that FAT32 copy has no Unix permissions at all -- readable by anyone with the card in a reader for as long as it sits there, so it's removed as soon as it's been copied somewhere that isn't).
+   - A file that fails validation, or one whose hardware serial doesn't match this specific unit (e.g. the wrong card ended up in the wrong unit during batch assembly), or an `/etc/hardhat/device.json` that already exists and differs -- refuses, renames the boot-partition file to `device.json.rejected` (left in place, for a technician to pull the card and inspect what shipped in that slot) rather than either silently discarding it or overwriting a working identity.
+   `hardhat-heartbeat.service` then starts normally on this and every later boot, exactly as if `setup_pi.sh --config` had been run directly.
+
+`import-device-json.sh` reuses `heartbeat.py`'s own config validation (schema shape and the hardware-serial pairing check) rather than reimplementing it -- one place this has to be correct, same rule as everywhere else in this project. Every path it uses is overridable via environment variable (see the script's own header) for testing without real hardware; `device-agent/tests/test_import_device_json.sh` exercises it end to end (no boot-partition file, a valid one, an already-installed identical/different identity, and a wrong-hardware-serial file) without sudo or a real Pi.
+
 ## What becomes active, and when
 
 ```text
@@ -106,7 +124,8 @@ From the repository root:
 
 ```bash
 python3 -m unittest discover -s device-agent/tests -v
-bash -n device-agent/setup_pi.sh wifi-onboarding/setup_pi.sh
+bash -n device-agent/setup_pi.sh wifi-onboarding/setup_pi.sh device-agent/import-device-json.sh
+bash device-agent/tests/test_import_device_json.sh
 ```
 
 With local Supabase running, migrations applied through 0013, and `portal/.env.local` configured:
