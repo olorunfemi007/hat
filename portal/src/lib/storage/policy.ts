@@ -60,7 +60,7 @@ async function resolveConnection(config: StorageDestination, orgId: string, admi
     .eq("id", connectionId).eq("org_id", orgId).eq("status", "connected").maybeSingle();
   if (error || !connection) return invalidConnection();
   const row = connection as ConnectionRow;
-  if (row.provider !== config.provider || row.bucket !== config.bucket) return invalidConnection();
+  if (row.provider !== config.provider || row.bucket !== config.bucket || row.region !== config.region || row.endpoint !== config.endpoint) return invalidConnection();
 
   const entry: StorageCredential = { org_id: orgId, provider: row.provider as "s3" | "minio", allowed_buckets: [row.bucket] };
   if (row.auth_mode === "role") {

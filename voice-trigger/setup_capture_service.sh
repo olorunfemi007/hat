@@ -12,7 +12,7 @@ while [ "$#" -gt 0 ]; do
         *) echo "Usage: bash setup_capture_service.sh [--alsa-device plughw:CARD,DEVICE]" >&2; exit 1 ;;
     esac
 done
-if [[ ! "$ALSA_DEVICE" =~ ^[A-Za-z0-9_:,.-]+$ ]]; then
+if [[ ! "$ALSA_DEVICE" =~ ^[A-Za-z0-9_:,.=-]+$ ]]; then
     echo "Invalid ALSA device name" >&2; exit 1
 fi
 if ! id -u hardhat-heartbeat >/dev/null 2>&1 || [ ! -f /opt/hardhat/device-agent/capture.py ]; then

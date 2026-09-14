@@ -6,6 +6,8 @@ import {
   DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client,
 } from "@aws-sdk/client-s3";
 import { fromTemporaryCredentials } from "@aws-sdk/credential-providers";
+import { pinnedStorageHandler } from "./ssrf";
+import { verifyAwsRoleTrust } from "./aws-role";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { resolveStoragePolicy, type StorageCredential } from "./policy";
 import {
@@ -32,7 +34,7 @@ const CLOUD_TIMEOUT_MS = 30_000;
  * in this module already has (resolveStoragePolicy validates, clientFor/this
  * only builds).
  */
-function buildS3Client(entry: StorageCredential, region: string, endpoint: string): S3Client {
+async function buildS3Client(entry: StorageCredential, region: string, endpoint: string, pinEndpoint = false): Promise<S3Client> {
   const staticCredentials = entry.access_key_id && entry.secret_access_key ? {
     accessKeyId: entry.access_key_id,
     secretAccessKey: entry.secret_access_key,
@@ -48,7 +50,7 @@ function buildS3Client(entry: StorageCredential, region: string, endpoint: strin
     // Never follow a provider redirect to an endpoint outside the operator's policy.
     followRegionRedirects: false,
     maxAttempts: 2,
-    requestHandler: { connectionTimeout: 5_000, requestTimeout: CLOUD_TIMEOUT_MS },
+    requestHandler: pinEndpoint ? await pinnedStorageHandler(endpoint) : { connectionTimeout: 5_000, requestTimeout: CLOUD_TIMEOUT_MS },
     requestChecksumCalculation: "WHEN_REQUIRED",
     responseChecksumValidation: "WHEN_REQUIRED",
   });
@@ -56,7 +58,7 @@ function buildS3Client(entry: StorageCredential, region: string, endpoint: strin
 
 async function clientFor(config: StorageDestination, orgId: string, admin: SupabaseClient) {
   const { entry, endpoint, region } = await resolveStoragePolicy(config, orgId, admin);
-  return buildS3Client(entry, region, endpoint);
+  return buildS3Client(entry, region, endpoint, config.credentials_secret_ref.startsWith("connection:") && entry.provider === "minio");
 }
 
 function validateCapture(capture: UploadCapture) {
@@ -251,7 +253,12 @@ export async function testStorageConnection(config: StorageDestination, orgId: s
 export async function testCandidateConnection(
   entry: StorageCredential, region: string, endpoint: string, config: StorageDestination, orgId: string,
 ): Promise<{ verified_at: string }> {
-  const client = buildS3Client(entry, region, endpoint);
+  if (entry.role_arn) {
+    if (!entry.external_id) throw new StorageError("invalid_role", "An external ID is required.", 422);
+    const temporary = await verifyAwsRoleTrust(entry.role_arn, entry.external_id, region);
+    entry = { ...entry, ...temporary, role_arn: undefined };
+  }
+  const client = await buildS3Client(entry, region, endpoint, entry.provider === "minio");
   try { return await runConnectionTest(client, config, orgId); }
   finally { client.destroy(); }
 }

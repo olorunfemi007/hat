@@ -1,0 +1,23 @@
+{
+  "checks": [
+    {
+      "name": "Encryption round trip, unique nonce, tamper rejection and unknown-key rejection",
+      "passed": true
+    },
+    {
+      "name": "Initial endpoint validation rejects loopback, metadata and private addresses",
+      "passed": true
+    },
+    {
+      "name": "Non-admin connection actions fail before cloud requests or privileged writes",
+      "passed": true
+    },
+    {
+      "name": "AWS setup rejects a role that does not enforce external ID",
+      "passed": false,
+      "detail": "Unsafe role accepted and persisted (1 save); 4 assume-role requests all used the correct ID, with no missing/wrong-ID rejection check.\n\ntrue !== false\n"
+    }
+  ],
+  "passed": 3,
+  "failed": 1
+}
