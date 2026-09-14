@@ -28,16 +28,15 @@ export default async function DevicesPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Devices</h1>
+          <h1 className="page-title">Devices</h1>
           <p className="text-sm text-neutral-600 dark:text-neutral-400">
-            Devices claimed into this organization. Unclaimed inventory isn&apos;t
-            listable here by design -- see the claim flow.
+            Your connected fleet. Manage devices, assignments, and availability.
           </p>
         </div>
         {canClaimDevice(role) && (
           <Link
             href="/devices/claim"
-            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200"
+            className="button-primary"
           >
             Claim a device
           </Link>
@@ -55,7 +54,7 @@ export default async function DevicesPage() {
         </p>
       )}
 
-      <ul className="divide-y divide-neutral-200 rounded-lg border border-neutral-200 px-4 dark:divide-neutral-800 dark:border-neutral-800">
+      <ul className="divide-y divide-neutral-200 surface px-4 dark:divide-neutral-800">
         {devices.length > 0 ? (
           devices.map((device) => (
             <DeviceRow

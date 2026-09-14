@@ -6,7 +6,7 @@ import { createClient } from "@supabase/supabase-js";
  * service_role Supabase client. Bypasses RLS entirely -- see
  * supabase/README.md's "service_role needs explicit table grants" section.
  *
- * ONLY use this for `supabase.auth.admin.inviteUserByEmail()`, called from
+ * Use this for `supabase.auth.admin.inviteUserByEmail()`, called from
  * the invite Server Action (src/app/(app)/org/actions.ts) after
  * `invite_member()` returns `outcome = 'invited'`. That Auth Admin API call
  * requires the service-role/secret key and is JS-SDK-only -- it can never
@@ -16,8 +16,13 @@ import { createClient } from "@supabase/supabase-js";
  * that there's no external Clerk event to sync (see 0001_schema.sql's
  * header). Never import this from a Client Component, never send
  * SUPABASE_SERVICE_ROLE_KEY to the browser, and never use this client to
- * serve a user-facing read/write path -- every other request in this app
- * must go through createServerSupabaseClient() so RLS actually applies.
+ * serve an unchecked user-facing read/write path. The machine capture-sync
+ * endpoint authenticates the physical device with service-only RPCs before
+ * every operation, and always scopes capture/config queries to that device's
+ * organization. Storage connection verification uses it only after the normal
+ * user client has authorized the organization administrator and selected the
+ * configuration through RLS. Other user requests must use
+ * createServerSupabaseClient() so RLS actually applies.
  */
 export function createAdminSupabaseClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;

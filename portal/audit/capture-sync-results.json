@@ -1,0 +1,32 @@
+{
+  "checks": [
+    "Untested destination cannot receive captures",
+    "Real upload/read/delete connection test and default activation",
+    "Real signed upload, independent verification, database receipt, exact stored bytes",
+    "Idempotent receipt, conflicting manifest rejection, and late overwrite prevention",
+    "Hardware mismatch and paused uploads rejected while heartbeat still works",
+    "Pending capture stays pinned when the fleet default changes",
+    "Real Pi queue survives failed transfer, restarts, verifies, then cleans up and reports status",
+    "Portal storage/captures browser workflow"
+  ],
+  "browser": {
+    "checks": [
+      "Connection test through authenticated server action",
+      "Guided account/bucket selection, create, test, activate, pause, resume",
+      "Site destination persists",
+      "Device upload pause/resume"
+    ],
+    "scans": [
+      "light 1440 /captures",
+      "light 1440 /storage",
+      "light 320 /captures",
+      "light 320 /storage",
+      "dark 1440 /captures",
+      "dark 1440 /storage",
+      "dark 320 /captures",
+      "dark 320 /storage"
+    ],
+    "runtime_errors": [],
+    "accessibility_violations": 0
+  }
+}

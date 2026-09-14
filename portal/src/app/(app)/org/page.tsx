@@ -19,7 +19,7 @@ export default async function OrgSettingsPage() {
 
   if (!orgId) {
     return (
-      <div className="rounded-lg border border-neutral-200 p-6 text-sm text-neutral-600 dark:border-neutral-800 dark:text-neutral-400">
+      <div className="surface p-6 text-sm text-neutral-600 dark:text-neutral-400">
         No active organization.
       </div>
     );
@@ -54,18 +54,16 @@ export default async function OrgSettingsPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
+        <h1 className="page-title">
           Organization
         </h1>
         <p className="text-sm text-neutral-600 dark:text-neutral-400">
-          Members, roles, and invitations. Role changes take effect on each
-          member&apos;s next request -- Postgres RLS reads their role live
-          from organization_members, not a cached session claim.
+          Bring your team together. Manage members, roles, and invitations.
         </p>
       </div>
 
       {canRenameOrg(role) && orgResult.data && (
-        <div className="rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
+        <div className="surface p-4">
           <h2 className="text-sm font-semibold">Organization name</h2>
           <div className="mt-3">
             <RenameOrgForm currentName={orgResult.data.name} />
@@ -79,7 +77,7 @@ export default async function OrgSettingsPage() {
         </p>
       )}
 
-      <div className="rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
+      <div className="surface p-4">
         <h2 className="text-sm font-semibold">
           Members ({members.length})
         </h2>
@@ -93,7 +91,7 @@ export default async function OrgSettingsPage() {
       </div>
 
       {canManage && (
-        <div className="rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
+        <div className="surface p-4">
           <h2 className="text-sm font-semibold">Invite a member</h2>
           <div className="mt-3">
             <InviteForm />
@@ -102,7 +100,7 @@ export default async function OrgSettingsPage() {
       )}
 
       {canManage && (
-        <div className="rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
+        <div className="surface p-4">
           <h2 className="text-sm font-semibold">
             Pending invites ({invites.length})
           </h2>

@@ -14,7 +14,7 @@ export function CreateOrgForm() {
   return (
     <form
       action={action}
-      className="w-full max-w-sm space-y-4 rounded-lg border border-neutral-200 p-6 dark:border-neutral-800"
+      className="w-full max-w-sm space-y-4 surface p-6"
     >
       <div>
         <label className="block text-xs font-medium text-neutral-500">
@@ -23,7 +23,7 @@ export function CreateOrgForm() {
             name="name"
             required
             autoComplete="organization"
-            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+            className="mt-1 w-full control px-3 py-2 text-sm"
             placeholder="Acme Construction"
           />
         </label>
@@ -31,7 +31,7 @@ export function CreateOrgForm() {
       <button
         type="submit"
         disabled={pending}
-        className="w-full rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200"
+        className="button-primary w-full disabled:opacity-50"
       >
         {pending ? "Creating…" : "Create organization"}
       </button>

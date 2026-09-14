@@ -22,7 +22,7 @@ export function InviteForm() {
             type="email"
             name="email"
             required
-            className="mt-1 rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+            className="mt-1 control px-3 py-2 text-sm"
           />
         </label>
       </div>
@@ -32,7 +32,7 @@ export function InviteForm() {
           <select
             name="role"
             defaultValue="viewer"
-            className="mt-1 rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+            className="mt-1 control px-3 py-2 text-sm"
           >
             {ORG_ROLES.map((r) => (
               <option key={r} value={r}>
@@ -45,7 +45,7 @@ export function InviteForm() {
       <button
         type="submit"
         disabled={pending}
-        className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200"
+        className="button-primary disabled:opacity-50"
       >
         {pending ? "Inviting…" : "Invite"}
       </button>

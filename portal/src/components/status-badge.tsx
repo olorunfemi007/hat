@@ -12,8 +12,9 @@ const STYLES: Record<DeviceStatus, string> = {
 export function StatusBadge({ status }: { status: DeviceStatus }) {
   return (
     <span
-      className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${STYLES[status]}`}
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium capitalize ${STYLES[status]}`}
     >
+      <span className="status-dot" aria-hidden="true" />
       {status}
     </span>
   );

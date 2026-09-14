@@ -13,7 +13,7 @@ export default async function ClaimDevicePage({ searchParams }: {
 
   if (!canClaimDevice(role)) {
     return (
-      <div className="rounded-lg border border-neutral-200 p-6 text-sm text-neutral-600 dark:border-neutral-800 dark:text-neutral-400">
+      <div className="surface p-6 text-sm text-neutral-600 dark:text-neutral-400">
         Only org admins and device admins can claim devices. Ask one of them
         to claim this device, or to grant you the device_admin role.
       </div>
@@ -29,7 +29,7 @@ export default async function ClaimDevicePage({ searchParams }: {
   return (
     <div className="max-w-lg space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
+        <h1 className="page-title">
           Claim a device
         </h1>
         <p className="text-sm text-neutral-600 dark:text-neutral-400">

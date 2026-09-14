@@ -1,0 +1,23 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DistinguishMissingObjects",
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::BUCKET_NAME"
+    },
+    {
+      "Sid": "CompanyCapturesAndMetadata",
+      "Effect": "Allow",
+      "Action": ["s3:PutObject", "s3:GetObject", "s3:GetObjectVersion"],
+      "Resource": "arn:aws:s3:::BUCKET_NAME/ORG_UUID/*"
+    },
+    {
+      "Sid": "CleanUpConnectionTestsOnly",
+      "Effect": "Allow",
+      "Action": ["s3:DeleteObject", "s3:DeleteObjectVersion"],
+      "Resource": "arn:aws:s3:::BUCKET_NAME/ORG_UUID/.hardhat-tests/*"
+    }
+  ]
+}

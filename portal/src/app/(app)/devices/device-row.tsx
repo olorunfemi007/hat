@@ -49,7 +49,7 @@ export function DeviceRow({
           {canManage && (
             <button
               onClick={() => setEditing((v) => !v)}
-              className="rounded-md border border-neutral-300 px-3 py-1 text-xs hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
+              className="control px-3 py-1 text-xs"
             >
               {editing ? "Cancel" : "Edit"}
             </button>
@@ -68,7 +68,7 @@ export function DeviceRow({
               <input
                 name="display_name"
                 defaultValue={device.display_name ?? ""}
-                className="mt-1 rounded-md border border-neutral-300 px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-950"
+                className="mt-1 control px-2 py-1 text-sm"
               />
             </label>
           </div>
@@ -78,7 +78,7 @@ export function DeviceRow({
               <select
                 name="site_id"
                 defaultValue={device.site_id ?? ""}
-                className="mt-1 rounded-md border border-neutral-300 px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-950"
+                className="mt-1 control px-2 py-1 text-sm"
               >
                 <option value="">Unassigned</option>
                 {sites.map((s) => (
@@ -92,7 +92,7 @@ export function DeviceRow({
           <button
             type="submit"
             disabled={pending}
-            className="rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
+            className="button-primary disabled:opacity-50"
           >
             {pending ? "Saving…" : "Save"}
           </button>

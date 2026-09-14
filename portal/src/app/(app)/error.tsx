@@ -23,7 +23,7 @@ export default function AppError({
       )}
       <button
         onClick={() => reset()}
-        className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+        className="control px-3 py-1.5 text-sm font-medium"
       >
         Try again
       </button>

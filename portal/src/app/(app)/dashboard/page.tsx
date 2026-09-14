@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Icon, type IconName } from "@/components/icon";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getOrgContext } from "@/lib/org-context";
 import { canClaimDevice, canManageStorage } from "@/lib/roles";
@@ -63,94 +64,98 @@ export default async function DashboardPage() {
     {},
   );
 
+  const activePercent = devices.length
+    ? ((statusCounts.active ?? 0) / devices.length) * 100 : 0;
+  const claimedEnd = activePercent + (devices.length
+    ? ((statusCounts.claimed ?? 0) / devices.length) * 100 : 0);
+  const ringBackground = devices.length
+    ? `conic-gradient(var(--green) 0% ${activePercent}%, var(--amber) ${activePercent}% ${claimedEnd}%, var(--red) ${claimedEnd}% 100%)`
+    : "var(--surface-muted)";
+  const statusColors: Record<string, string> = {
+    active: "var(--green)", claimed: "var(--amber)", offline: "var(--red)",
+  };
+
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {org?.name ?? "Dashboard"}
-        </h1>
-        <p className="text-sm text-neutral-600 dark:text-neutral-400">
-          Overview of your organization&apos;s sites, devices, and storage.
-        </p>
+      <div className="dashboard-heading">
+        <div>
+          <p className="eyebrow">Fleet overview</p>
+          <h1 className="page-title">{org?.name ?? "Dashboard"}</h1>
+          <p className="text-sm text-neutral-500">Your people, places, and devices. All together.</p>
+        </div>
+        {canClaimDevice(role) && (
+          <Link href="/devices/claim" className="button-primary"><Icon name="plus" />Claim a device</Link>
+        )}
       </div>
 
       {queryErrors.length > 0 && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-400">
-          <p className="font-medium">
-            Some dashboard data failed to load. Counts below may be incomplete or wrong.
-          </p>
+        <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-400">
+          <p className="font-medium">Some dashboard data failed to load. Counts below may be incomplete or wrong.</p>
           <ul className="mt-1 list-inside list-disc">
-            {queryErrors.map((e) => (
-              <li key={e}>{e}</li>
-            ))}
+            {queryErrors.map((e) => <li key={e}>{e}</li>)}
           </ul>
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Sites" value={sitesCount} href="/sites" />
-        <StatCard label="Total devices" value={devices.length} href="/devices" />
-        <StatCard
-          label="Active devices"
-          value={statusCounts.active ?? 0}
-          href="/devices"
-        />
-        <StatCard
-          label="Offline devices"
-          value={statusCounts.offline ?? 0}
-          href="/devices"
-        />
+      <div className="overview-grid">
+        <StatCard label="Sites" value={sitesCount} href="/sites" icon="sites" />
+        <StatCard label="Total devices" value={devices.length} href="/devices" icon="devices" />
+        <StatCard label="Active devices" value={statusCounts.active ?? 0} href="/devices" icon="activity" color="var(--green)" />
+        <StatCard label="Offline devices" value={statusCounts.offline ?? 0} href="/devices" icon="offline" color="var(--red)" />
       </div>
 
-      <div className="rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
-        <h2 className="text-sm font-semibold">Device status breakdown</h2>
-        <dl className="mt-3 grid grid-cols-3 gap-4 text-sm">
-          {DEVICE_STATUSES.map((status) => (
-            <div key={status}>
-              <dt className="capitalize text-neutral-500">{status}</dt>
-              <dd className="text-lg font-semibold">
-                {statusCounts[status] ?? 0}
-              </dd>
+      <div className="dashboard-lower">
+        <section className="surface fleet-panel" aria-labelledby="fleet-title">
+          <div className="section-heading">
+            <h2 id="fleet-title">Device status breakdown</h2>
+            <Link href="/devices">View devices <Icon name="arrow" /></Link>
+          </div>
+          <p className="section-description">A snapshot of your connected fleet.</p>
+          <div className="fleet-summary">
+            <div className="fleet-ring" aria-hidden="true" style={{ background: ringBackground }}>
+              <div className="fleet-ring-center"><strong>{devices.length}</strong><span>Total devices</span></div>
             </div>
-          ))}
-        </dl>
+            <dl className="fleet-legend">
+              {DEVICE_STATUSES.map((status) => (
+                <div key={status}>
+                  <dt><span className="status-dot" style={{ color: statusColors[status] }} />{status}</dt>
+                  <dd>{statusCounts[status] ?? 0}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+          {devices.length === 0 && <p className="section-description mt-6">Your fleet overview will appear as devices are claimed.</p>}
+        </section>
+        <section className="surface workspace-panel" aria-labelledby="workspace-title">
+          <h2 id="workspace-title">Your workspace</h2>
+          <p className="section-description">Everything your fleet needs, in one place.</p>
+          <Link className="workspace-shortcut" href="/sites">
+            <Icon name="sites" /><div><strong>Sites</strong><span>{sitesCount} {sitesCount === 1 ? "location" : "locations"} in your organization</span></div><Icon name="arrow" />
+          </Link>
+          {canSeeStorage && (
+            <Link className="workspace-shortcut" href="/storage">
+              <Icon name="storage" /><div><strong>Storage configs</strong><span>{storageCount} {storageCount === 1 ? "destination" : "destinations"} configured</span></div><Icon name="arrow" />
+            </Link>
+          )}
+          <Link className="workspace-shortcut" href="/org">
+            <Icon name="organization" /><div><strong>Organization</strong><span>Members, roles, and invitations</span></div><Icon name="arrow" />
+          </Link>
+        </section>
       </div>
-
-      {canSeeStorage && (
-        <div className="rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
-          <h2 className="text-sm font-semibold">Storage configs</h2>
-          <p className="mt-1 text-2xl font-semibold">{storageCount}</p>
-        </div>
-      )}
-
-      {canClaimDevice(role) && (
-        <Link
-          href="/devices/claim"
-          className="inline-block rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200"
-        >
-          Claim a device
-        </Link>
-      )}
+      <p className="dashboard-footer">Device availability reflects the latest reported heartbeat.</p>
     </div>
   );
 }
 
-function StatCard({
-  label,
-  value,
-  href,
-}: {
-  label: string;
-  value: number;
-  href: string;
+function StatCard({ label, value, href, icon, color }: {
+  label: string; value: number; href: string; icon: IconName; color?: string;
 }) {
   return (
-    <Link
-      href={href}
-      className="rounded-lg border border-neutral-200 p-4 transition-colors hover:border-neutral-400 dark:border-neutral-800 dark:hover:border-neutral-600"
-    >
-      <p className="text-sm text-neutral-500">{label}</p>
-      <p className="mt-1 text-2xl font-semibold">{value}</p>
+    <Link href={href} className="surface stat-card">
+      <span className="stat-icon" style={{ color }}><Icon name={icon} /></span>
+      <Icon name="arrow" className="stat-arrow" />
+      <p className="stat-label">{label}</p>
+      <span className="stat-value">{value}</span>
     </Link>
   );
 }

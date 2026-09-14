@@ -36,19 +36,19 @@ export function SiteRow({
             name="name"
             defaultValue={site.name}
             required
-            className="rounded-md border border-neutral-300 px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+            className="control px-2 py-1 text-sm"
           />
           <button
             type="submit"
             disabled={renamePending}
-            className="rounded-md bg-neutral-900 px-3 py-1 text-xs font-medium text-white dark:bg-white dark:text-neutral-900"
+            className="button-primary"
           >
             Save
           </button>
           <button
             type="button"
             onClick={() => setEditing(false)}
-            className="rounded-md border border-neutral-300 px-3 py-1 text-xs dark:border-neutral-700"
+            className="control px-3 py-1 text-xs"
           >
             Cancel
           </button>
@@ -75,7 +75,7 @@ export function SiteRow({
           <div className="flex gap-2">
             <button
               onClick={() => setEditing(true)}
-              className="rounded-md border border-neutral-300 px-3 py-1 text-xs hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
+              className="control px-3 py-1 text-xs"
             >
               Rename
             </button>
@@ -83,7 +83,7 @@ export function SiteRow({
               <button
                 type="submit"
                 disabled={deletePending}
-                className="rounded-md border border-red-300 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950"
+                className="button-danger disabled:opacity-50"
               >
                 {deletePending ? "Deleting…" : "Delete"}
               </button>

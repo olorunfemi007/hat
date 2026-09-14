@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { Brand } from "@/components/brand";
+import { Icon } from "@/components/icon";
 import { redirect } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getCurrentUserClaims } from "@/lib/org-context";
@@ -12,30 +14,23 @@ export default async function Home() {
   }
 
   return (
-    <div className="flex min-h-screen flex-1 flex-col items-center justify-center gap-8 p-6 text-center">
-      <div className="space-y-3">
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-          Hard Hat Portal
-        </h1>
-        <p className="max-w-md text-neutral-600 dark:text-neutral-400">
-          Manage your organization&apos;s sites, claim and monitor devices,
-          and configure fleet data storage.
-        </p>
-      </div>
-      <div className="flex gap-3">
-        <Link
-          href="/sign-in"
-          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200"
-        >
-          Sign in
-        </Link>
-        <Link
-          href="/sign-up"
-          className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
-        >
-          Sign up
-        </Link>
-      </div>
+    <div className="landing-page">
+      <header className="landing-header"><Brand /><Link href="/sign-in" className="button-secondary">Sign in <Icon name="arrow" /></Link></header>
+      <main className="landing-main">
+        <p className="eyebrow">Hard Hat Portal</p>
+        <h1>Your fleet.<br /><span>Beautifully connected.</span></h1>
+        <p className="landing-description">One workspace for your devices, your sites, and the people who bring it all together.</p>
+        <div className="flex flex-wrap justify-center gap-3">
+          <Link href="/sign-up" className="button-primary">Get started <Icon name="arrow" /></Link>
+          <Link href="/sign-in" className="button-secondary">Sign in to your workspace</Link>
+        </div>
+        <div className="landing-features">
+          <div className="surface"><Icon name="devices" /><h2>Know your fleet</h2><p>Claim devices and keep their availability in view.</p></div>
+          <div className="surface"><Icon name="sites" /><h2>A place for every device</h2><p>Organize your fleet around the sites where work happens.</p></div>
+          <div className="surface"><Icon name="organization" /><h2>Bring your team together</h2><p>Manage access with clear roles and simple invitations.</p></div>
+        </div>
+      </main>
+      <footer className="landing-footer">Hard Hat · Fleet workspace</footer>
     </div>
   );
 }

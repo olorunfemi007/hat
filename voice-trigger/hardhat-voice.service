@@ -1,0 +1,33 @@
+[Unit]
+Description=Hard Hat voice-triggered capture
+Documentation=file:///opt/hardhat/device-agent/SYNC.md
+After=sound.target hardhat-device-import.service
+ConditionPathExists=/etc/hardhat/sync.json
+
+[Service]
+Type=simple
+User=hardhat-heartbeat
+Group=hardhat-heartbeat
+WorkingDirectory=/opt/hardhat/voice-trigger
+EnvironmentFile=/etc/hardhat/voice-trigger.env
+ExecStart=/opt/hardhat/voice-trigger/voice-trigger -listen_cmd ${HARDHAT_LISTEN_CMD} -camera_cmd ${HARDHAT_CAMERA_CMD} -light_on_cmd ${HARDHAT_LIGHT_ON_CMD} -light_off_cmd ${HARDHAT_LIGHT_OFF_CMD}
+Restart=always
+RestartSec=10
+# Let the Go runner request a graceful camera close and MP4 finalization before
+# systemd kills the remaining group. Capture.py signals its camera subprocess.
+KillMode=mixed
+TimeoutStopSec=100
+StateDirectory=hardhat-sync
+StateDirectoryMode=0700
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

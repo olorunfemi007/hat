@@ -14,7 +14,7 @@ export function CreateSiteForm() {
   return (
     <form
       action={formAction}
-      className="flex flex-col gap-3 rounded-lg border border-neutral-200 p-4 dark:border-neutral-800 sm:flex-row sm:items-end"
+      className="flex flex-col gap-3 surface p-4 sm:flex-row sm:items-end"
     >
       <div className="flex-1">
         <label className="block text-xs font-medium text-neutral-500">
@@ -22,7 +22,7 @@ export function CreateSiteForm() {
           <input
             name="name"
             required
-            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+            className="mt-1 w-full control px-3 py-2 text-sm"
             placeholder="North Yard"
           />
         </label>
@@ -32,7 +32,7 @@ export function CreateSiteForm() {
           Address (optional)
           <input
             name="address"
-            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+            className="mt-1 w-full control px-3 py-2 text-sm"
             placeholder="123 Industrial Way"
           />
         </label>
@@ -40,7 +40,7 @@ export function CreateSiteForm() {
       <button
         type="submit"
         disabled={pending}
-        className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200"
+        className="button-primary disabled:opacity-50"
       >
         {pending ? "Adding…" : "Add site"}
       </button>

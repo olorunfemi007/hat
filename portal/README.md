@@ -1,5 +1,8 @@
 # Hard Hat Portal
 
+For voice capture, storage connections, and Pi upload setup, see
+[Capture and storage setup](../CAPTURE_SYNC.md).
+
 Customer-facing web portal for the hard-hat IoT project: organization
 dashboard, sites, device claiming/management, and per-org storage
 configuration. Next.js (App Router, TypeScript, Tailwind), native Supabase

@@ -38,7 +38,7 @@ export function ClaimForm({ sites, initialSerial, initialCode }: { sites: Site[]
         </p>
         <button
           onClick={() => router.push("/devices")}
-          className="mt-4 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
+          className="button-primary mt-4"
         >
           Go to devices
         </button>
@@ -81,7 +81,7 @@ function SearchStep({ onFound, initialSerial, initialCode }: { onFound: (found: 
   return (
     <form
       action={action}
-      className="space-y-4 rounded-lg border border-neutral-200 p-6 dark:border-neutral-800"
+      className="space-y-4 surface p-6"
     >
       <div>
         <label className="block text-xs font-medium text-neutral-500">
@@ -91,7 +91,7 @@ function SearchStep({ onFound, initialSerial, initialCode }: { onFound: (found: 
             defaultValue={initialSerial}
             required
             autoComplete="off"
-            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm font-mono dark:border-neutral-700 dark:bg-neutral-900"
+            className="mt-1 w-full control px-3 py-2 text-sm font-mono"
             placeholder="PI-SN-4C1A9F2B"
           />
         </label>
@@ -104,7 +104,7 @@ function SearchStep({ onFound, initialSerial, initialCode }: { onFound: (found: 
             defaultValue={initialCode}
             required
             autoComplete="off"
-            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm font-mono dark:border-neutral-700 dark:bg-neutral-900"
+            className="mt-1 w-full control px-3 py-2 text-sm font-mono"
             placeholder="Printed on the device label"
           />
         </label>
@@ -115,7 +115,7 @@ function SearchStep({ onFound, initialSerial, initialCode }: { onFound: (found: 
       <button
         type="submit"
         disabled={pending}
-        className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200"
+        className="button-primary disabled:opacity-50"
       >
         {pending ? "Looking up…" : "Look up device"}
       </button>
@@ -154,7 +154,7 @@ function ConfirmStep({
   return (
     <form
       action={action}
-      className="space-y-4 rounded-lg border border-neutral-200 p-6 dark:border-neutral-800"
+      className="space-y-4 surface p-6"
     >
       <input type="hidden" name="serial_number" value={found.serialNumber} />
       <input type="hidden" name="claim_code" value={found.claimCode} />
@@ -171,7 +171,7 @@ function ConfirmStep({
           Display name (optional)
           <input
             name="display_name"
-            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+            className="mt-1 w-full control px-3 py-2 text-sm"
             placeholder="Helmet #12"
           />
         </label>
@@ -182,7 +182,7 @@ function ConfirmStep({
           Site (optional)
           <select
             name="site_id"
-            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+            className="mt-1 w-full control px-3 py-2 text-sm"
           >
             <option value="">Unassigned</option>
             {sites.map((s) => (
@@ -198,14 +198,14 @@ function ConfirmStep({
         <button
           type="submit"
           disabled={pending}
-          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200"
+          className="button-primary disabled:opacity-50"
         >
           {pending ? "Claiming…" : "Confirm claim"}
         </button>
         <button
           type="button"
           onClick={onRestart}
-          className="rounded-md border border-neutral-300 px-4 py-2 text-sm dark:border-neutral-700"
+          className="control px-4 py-2 text-sm"
         >
           Start over
         </button>

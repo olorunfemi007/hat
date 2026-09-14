@@ -44,7 +44,7 @@ export function PendingInvites({
                   if (!result.ok) setError(result.error ?? "Failed.");
                 });
               }}
-              className="text-xs text-red-600 underline disabled:opacity-50 dark:text-red-400"
+              className="button-danger disabled:opacity-50"
             >
               Revoke
             </button>

@@ -4,14 +4,18 @@ import { canManageStorage } from "@/lib/roles";
 import type { StorageConfig } from "@/lib/supabase/types";
 import { StorageConfigForm } from "./storage-config-form";
 import { StorageConfigRow } from "./storage-config-row";
+import { ConnectStorageWizard } from "./connect-storage-wizard";
+import { storageConnectionChoices } from "@/lib/storage-connections";
+import { SiteStorageForm } from "./site-storage-form";
+import type { Site } from "@/lib/supabase/types";
 
 export default async function StoragePage() {
   const supabase = await createServerSupabaseClient();
-  const { role } = await getOrgContext(supabase);
+  const { role, orgId } = await getOrgContext(supabase);
 
   if (!canManageStorage(role)) {
     return (
-      <div className="rounded-lg border border-neutral-200 p-6 text-sm text-neutral-600 dark:border-neutral-800 dark:text-neutral-400">
+      <div className="surface p-6 text-sm text-neutral-600 dark:text-neutral-400">
         Storage configuration is only visible to org admins.
       </div>
     );
@@ -22,19 +26,20 @@ export default async function StoragePage() {
     .select("*")
     .order("created_at", { ascending: false })
     .returns<StorageConfig[]>();
+  const { data: sites, error: sitesError } = await supabase.from("sites").select("*").order("name").returns<Site[]>();
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Storage</h1>
+        <h1 className="page-title">Storage</h1>
         <p className="text-sm text-neutral-600 dark:text-neutral-400">
-          Where this organization&apos;s device data lands. Only a{" "}
-          <strong>reference</strong> to a secret is stored here -- never a raw
-          credential.
+          Connect once. Automatically deliver your fleet&apos;s captures to your company&apos;s storage.
         </p>
       </div>
 
-      <StorageConfigForm />
+      <p className="text-sm text-neutral-500">Automatic capture sync supports Amazon S3 and MinIO. A destination must pass a delivery test before it can be used.</p>
+      <ConnectStorageWizard trustPrincipalArn={process.env.HARDHAT_AWS_TRUST_PRINCIPAL_ARN ?? null} />
+      <StorageConfigForm connections={orgId ? storageConnectionChoices(orgId) : []} />
 
       {error && (
         <p className="text-sm text-red-600 dark:text-red-400">
@@ -42,7 +47,7 @@ export default async function StoragePage() {
         </p>
       )}
 
-      <ul className="divide-y divide-neutral-200 rounded-lg border border-neutral-200 px-4 dark:divide-neutral-800 dark:border-neutral-800">
+      <ul className="divide-y divide-neutral-200 surface px-4 dark:divide-neutral-800">
         {configs && configs.length > 0 ? (
           configs.map((config) => (
             <StorageConfigRow key={config.id} config={config} />
@@ -53,6 +58,13 @@ export default async function StoragePage() {
           </li>
         )}
       </ul>
+      {!sitesError && sites && sites.length > 0 && (
+        <section className="surface p-6 space-y-4">
+          <div><h2>Site destinations</h2><p className="text-sm text-neutral-500 mt-1">Use the organization default, or send a site&apos;s new captures to a different tested destination. Existing uploads keep their original destination.</p></div>
+          {sites.map((site) => <SiteStorageForm key={site.id} site={site} configs={configs ?? []} />)}
+        </section>
+      )}
+      {sitesError && <p role="alert" className="text-sm text-red-600">Site destinations could not be loaded.</p>}
     </div>
   );
 }

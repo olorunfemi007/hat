@@ -23,7 +23,7 @@ export function OrgSwitcher({
           await switchActiveOrg(orgId);
         });
       }}
-      className="min-w-0 max-w-full rounded-md border border-neutral-300 bg-transparent px-2 py-1 text-sm dark:border-neutral-700"
+      className="min-w-0 max-w-full control px-2 py-1 text-sm"
     >
       {orgs.map((org) => (
         <option key={org.id} value={org.id}>

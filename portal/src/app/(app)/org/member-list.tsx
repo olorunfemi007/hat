@@ -65,7 +65,7 @@ export function MemberList({
                         if (!result.ok) setError(result.error ?? "Failed.");
                       });
                     }}
-                    className="rounded-md border border-neutral-300 bg-transparent px-2 py-1 text-xs dark:border-neutral-700"
+                    className="control px-2 py-1 text-xs"
                   >
                     {ORG_ROLES.map((r) => (
                       <option key={r} value={r}>
@@ -91,7 +91,7 @@ export function MemberList({
                         if (!result.ok) setError(result.error ?? "Failed.");
                       });
                     }}
-                    className="text-xs text-red-600 underline disabled:opacity-50 dark:text-red-400"
+                    className="button-danger disabled:opacity-50"
                   >
                     {isSelf ? "Leave" : "Remove"}
                   </button>

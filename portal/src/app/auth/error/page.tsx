@@ -1,9 +1,11 @@
+import { Brand } from "@/components/brand";
 import Link from "next/link";
 
 export default function AuthErrorPage() {
   return (
-    <div className="flex min-h-screen flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
-      <h1 className="text-xl font-semibold tracking-tight">
+    <div role="main" className="auth-page flex-col gap-4 text-center">
+      <Brand />
+      <h1 className="page-title">
         This link didn&apos;t work
       </h1>
       <p className="max-w-sm text-sm text-neutral-600 dark:text-neutral-400">

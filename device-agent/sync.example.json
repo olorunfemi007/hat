@@ -1,0 +1,9 @@
+{
+  "portal_url": "http://localhost:3000",
+  "spool_dir": "/var/lib/hardhat-sync",
+  "max_spool_bytes": 2147483648,
+  "min_free_bytes": 268435456,
+  "retention_hours": 24,
+  "poll_seconds": 15,
+  "timeout_seconds": 60
+}

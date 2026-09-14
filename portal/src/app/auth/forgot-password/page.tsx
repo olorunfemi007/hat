@@ -1,5 +1,6 @@
 "use client";
 
+import { Brand } from "@/components/brand";
 import { useActionState } from "react";
 import Link from "next/link";
 import { requestPasswordReset, type AuthActionState } from "@/app/auth/actions";
@@ -14,8 +15,8 @@ export default function ForgotPasswordPage() {
 
   if (state.ok) {
     return (
-      <div className="flex min-h-screen flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
-        <h1 className="text-xl font-semibold tracking-tight">
+      <div role="main" className="auth-page flex-col gap-4 text-center">
+        <h1 className="page-title">
           Check your email
         </h1>
         <p className="max-w-sm text-sm text-neutral-600 dark:text-neutral-400">
@@ -30,13 +31,14 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-1 items-center justify-center p-6">
+    <div role="main" className="auth-page">
       <form
         action={action}
-        className="w-full max-w-sm space-y-4 rounded-lg border border-neutral-200 p-6 dark:border-neutral-800"
+        className="auth-card space-y-6"
       >
+        <Brand />
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">
+          <h1 className="page-title">
             Reset your password
           </h1>
           <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
@@ -52,7 +54,7 @@ export default function ForgotPasswordPage() {
               name="email"
               required
               autoComplete="email"
-              className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+              className="mt-1 w-full control px-3 py-2 text-sm"
             />
           </label>
         </div>
@@ -60,7 +62,7 @@ export default function ForgotPasswordPage() {
         <button
           type="submit"
           disabled={pending}
-          className="w-full rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200"
+          className="button-primary w-full disabled:opacity-50"
         >
           {pending ? "Sending…" : "Send reset link"}
         </button>

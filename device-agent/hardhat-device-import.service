@@ -2,7 +2,7 @@
 Description=Import a first-boot device identity from the boot partition, if present
 Documentation=file:///opt/hardhat/device-agent/README.md
 After=local-fs.target
-Before=hardhat-heartbeat.service
+Before=hardhat-heartbeat.service hardhat-sync.service
 
 [Service]
 Type=oneshot

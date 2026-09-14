@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getOrgContext } from "@/lib/org-context";
 import { signOut } from "@/app/auth/actions";
 import { NavLinks } from "@/components/nav-links";
+import { Brand } from "@/components/brand";
 import { ROLE_LABELS } from "@/lib/roles";
 import { OrgSwitcher } from "./org-switcher";
 import type { Organization, OrganizationMember } from "@/lib/supabase/types";
@@ -61,41 +62,49 @@ export default async function AppLayout({
   }));
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-200 px-4 py-3 sm:px-6 dark:border-neutral-800">
-        <div className="flex min-w-0 max-w-full flex-wrap items-center gap-3">
-          <span className="text-sm font-semibold tracking-tight">
-            Hard Hat Portal
-          </span>
+    <div className="app-shell">
+      <a href="#main-content" className="skip-link">Skip to content</a>
+      <header className="workspace-header">
+        <Brand />
+        <div className="workspace-context">
+          <span className="eyebrow">Workspace</span>
           {orgs.length > 1 ? (
             <OrgSwitcher orgs={orgs} currentOrgId={orgId} />
           ) : (
-            <span className="min-w-0 [overflow-wrap:anywhere] text-sm text-neutral-600 dark:text-neutral-400">
+            <span className="workspace-name">
               {orgs[0]?.name}
             </span>
           )}
         </div>
         <div className="flex items-center gap-3">
           {role && (
-            <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+            <span className="role-badge">
               {ROLE_LABELS[role]}
             </span>
           )}
           <form action={signOut}>
             <button
               type="submit"
-              className="text-sm text-neutral-600 underline dark:text-neutral-400"
+              className="button-secondary"
             >
               Sign out
             </button>
           </form>
         </div>
       </header>
-      <div className="flex min-w-0 flex-1 flex-col md:flex-row">
-        <aside className="w-full shrink-0 border-b border-neutral-200 p-3 md:w-56 md:border-r md:border-b-0 md:p-4 dark:border-neutral-800">
+      <div className="workspace-body">
+        <aside className="workspace-sidebar">
+          <p className="sidebar-label">Manage</p>
           <NavLinks role={role} />
+          <div className="sidebar-note">
+            <span className="sidebar-note-line" />
+            <p>Your fleet.<br />One connected workspace.</p>
+            <span>Hard Hat Portal</span>
+          </div>
         </aside>
-        <main className="min-w-0 flex-1 p-4 [overflow-wrap:anywhere] sm:p-6">{children}</main>
+        <main id="main-content" tabIndex={-1} className="workspace-main">
+          <div className="page-content">{children}</div>
+        </main>
       </div>
     </div>
   );

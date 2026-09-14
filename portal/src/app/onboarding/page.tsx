@@ -1,3 +1,4 @@
+import { Brand } from "@/components/brand";
 import { redirect } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getOrgContext } from "@/lib/org-context";
@@ -24,9 +25,10 @@ export default async function OnboardingPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-1 flex-col items-center justify-center gap-6 p-6">
+    <div role="main" className="auth-page flex-col gap-6">
+      <Brand />
       <div className="max-w-md text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">
+        <h1 className="page-title">
           Create your organization
         </h1>
         <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">

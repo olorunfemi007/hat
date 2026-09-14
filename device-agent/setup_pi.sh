@@ -4,13 +4,16 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_SOURCE=""
-if [ "$#" -gt 0 ]; then
-    if [ "$#" -ne 2 ] || [ "$1" != "--config" ]; then
-        echo "Usage: bash setup_pi.sh [--config /path/to/device.json]" >&2
-        exit 1
-    fi
-    CONFIG_SOURCE="$2"
-fi
+SYNC_CONFIG_SOURCE=""
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --config|--sync-config)
+            if [ "$#" -lt 2 ]; then echo "Missing configuration path" >&2; exit 1; fi
+            if [ "$1" = "--config" ]; then CONFIG_SOURCE="$2"; else SYNC_CONFIG_SOURCE="$2"; fi
+            shift 2 ;;
+        *) echo "Usage: bash setup_pi.sh [--config /path/to/device.json] [--sync-config /path/to/sync.json]" >&2; exit 1 ;;
+    esac
+done
 if [ ! -r /proc/device-tree/serial-number ] || ! command -v systemctl >/dev/null; then
     echo "Run this installer on the Raspberry Pi with systemd." >&2
     exit 1
@@ -39,13 +42,26 @@ if [ -n "$CONFIG_SOURCE" ]; then
         exit 1
     fi
 fi
+if [ -n "$SYNC_CONFIG_SOURCE" ]; then
+    sudo /usr/bin/python3 -B -c 'import sys; sys.path.insert(0, sys.argv[1]); from sync import load_sync_config; load_sync_config(sys.argv[2])' "$SCRIPT_DIR" "$SYNC_CONFIG_SOURCE"
+fi
 sudo install -d -m 0755 /opt/hardhat/device-agent /etc/hardhat
-sudo install -m 0644 "$SCRIPT_DIR/heartbeat.py" "$SCRIPT_DIR/README.md" /opt/hardhat/device-agent/
+sudo install -m 0644 "$SCRIPT_DIR/heartbeat.py" "$SCRIPT_DIR/sync.py" "$SCRIPT_DIR/capture.py" "$SCRIPT_DIR/README.md" "$SCRIPT_DIR/SYNC.md" "$SCRIPT_DIR/sync.example.json" /opt/hardhat/device-agent/
+sudo install -d -m 0700 -o hardhat-heartbeat -g hardhat-heartbeat /var/lib/hardhat-sync
+# Capture and synchronization share the existing private account/spool. This
+# gives the optional voice service access to the already-tested camera/audio
+# devices, without running it as root or sharing the identity with login users.
+for hardhat_group in video render audio; do
+    if getent group "$hardhat_group" >/dev/null; then sudo usermod -a -G "$hardhat_group" hardhat-heartbeat; fi
+done
+if [ -n "$SYNC_CONFIG_SOURCE" ] && ! sudo cmp -s "$SYNC_CONFIG_SOURCE" /etc/hardhat/sync.json; then
+    sudo install -m 0644 "$SYNC_CONFIG_SOURCE" /etc/hardhat/sync.json
+fi
 sudo install -m 0755 "$SCRIPT_DIR/import-device-json.sh" /opt/hardhat/device-agent/
 if [ -n "$CONFIG_SOURCE" ] && ! sudo test -e /etc/hardhat/device.json; then
     sudo install -m 0600 -o hardhat-heartbeat -g hardhat-heartbeat "$CONFIG_SOURCE" /etc/hardhat/device.json
 fi
-sudo install -m 0644 "$SCRIPT_DIR/hardhat-heartbeat.service" "$SCRIPT_DIR/hardhat-device-import.service" /etc/systemd/system/
+sudo install -m 0644 "$SCRIPT_DIR/hardhat-heartbeat.service" "$SCRIPT_DIR/hardhat-device-import.service" "$SCRIPT_DIR/hardhat-sync.service" /etc/systemd/system/
 sudo systemctl daemon-reload
 # hardhat-device-import.service is enabled unconditionally, even with no
 # --config given now: this is exactly the golden-image-prep case (see
@@ -53,7 +69,7 @@ sudo systemctl daemon-reload
 # once here, it then runs on every future boot of every unit cloned from
 # this image, importing whatever device.json an operator drops on that
 # specific unit's boot partition at flash time.
-sudo systemctl enable hardhat-heartbeat.service hardhat-device-import.service
+sudo systemctl enable hardhat-heartbeat.service hardhat-device-import.service hardhat-sync.service
 if sudo test -f /etc/hardhat/device.json; then
     # Always re-assert this, regardless of whether the file was just
     # installed by this script or was already present from an earlier
@@ -71,6 +87,11 @@ if sudo test -f /etc/hardhat/device.json; then
     sudo -u hardhat-heartbeat /usr/bin/python3 -B /opt/hardhat/device-agent/heartbeat.py --check-config
     sudo systemctl restart hardhat-heartbeat.service
     echo "Heartbeat service started. Logs: journalctl -u hardhat-heartbeat.service -f"
+    if sudo test -f /etc/hardhat/sync.json; then
+        sudo -u hardhat-heartbeat /usr/bin/python3 -B /opt/hardhat/device-agent/sync.py --check-config
+        sudo systemctl restart hardhat-sync.service
+        echo "Capture sync started. Logs: journalctl -u hardhat-sync.service -f"
+    fi
 else
     echo "Agent installed. Provision this Pi, then rerun with --config /path/to/device.json."
 fi

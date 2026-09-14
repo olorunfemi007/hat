@@ -19,7 +19,7 @@ export default async function SitesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Sites</h1>
+        <h1 className="page-title">Sites</h1>
         <p className="text-sm text-neutral-600 dark:text-neutral-400">
           Physical locations devices can be assigned to.
         </p>
@@ -33,7 +33,7 @@ export default async function SitesPage() {
         </p>
       )}
 
-      <ul className="divide-y divide-neutral-200 rounded-lg border border-neutral-200 px-4 dark:divide-neutral-800 dark:border-neutral-800">
+      <ul className="divide-y divide-neutral-200 surface px-4 dark:divide-neutral-800">
         {sites && sites.length > 0 ? (
           sites.map((site) => (
             <SiteRow key={site.id} site={site} canManage={canManage} />

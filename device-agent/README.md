@@ -1,5 +1,9 @@
 # Pi identity and heartbeat
 
+For voice-triggered recording, durable local storage and verified cloud uploads,
+see [Capture synchronization](SYNC.md). It reuses the identity described below;
+existing hats do not need to be provisioned again.
+
 This service closes the loop between a physical Pi, Wi-Fi onboarding, and the portal. It uses Python 3's standard library and runs independently of the Wi-Fi watcher. It starts on boot, sends an immediate heartbeat, then repeats every 60–65 seconds. Network failures retry after 5, 10, 20, 40, then at most 65 seconds; recovery needs no reboot. A portal outage never changes the Pi's Wi-Fi configuration.
 
 ## Provision one physical Pi

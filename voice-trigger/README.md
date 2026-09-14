@@ -1,16 +1,22 @@
 # voice-trigger
 
-Standalone test program: listens on the microphone for a spotted keyphrase
-(via PocketSphinx) and runs a shell command — by default a short
-`libcamera-vid` capture — when it fires. Not part of the real hard-hat agent;
-this is a bench-test rig for mic + wake-phrase + camera, validated on a
-MacBook before deploying to the Raspberry Pi.
+Listens on the microphone for camera commands via PocketSphinx. The default
+camera action records a distinct MP4 and queues it for verified company storage.
+The existing `-camera_cmd` override still supports hardware/bench commands.
+“Turn off camera” gracefully finishes the current clip; repeated camera-on
+detections do not interrupt a recording. Light actions have optional independent
+command hooks; no light driver or GPIO assignments are implemented.
+
+For installation, automatic startup, storage setup and offline behavior, follow
+[the capture/sync runbook](../device-agent/SYNC.md). The bench checks below still
+work with `-camera_cmd "echo CAMERA TRIGGERED"`.
 
 ## Files
 
 - `main.go` — the program. Shells out to `-listen_cmd` (default:
   `python3 kws_listen.py`), watches its stdout, and runs `-camera_cmd` on
-  every spotted line (debounced by `-cooldown`, default 3s). It has no idea
+  camera-on phrases (debounced by `-cooldown`, default 3s). Camera-off stops
+  the current command; unknown phrases are ignored. It has no idea
   what CLI flags the listener itself uses — that's deliberate, so swapping
   STT backends later doesn't require touching Go code again.
 - `kws_listen.py` — thin wrapper around pocketsphinx's `LiveSpeech`, printing
@@ -22,8 +28,8 @@ MacBook before deploying to the Raspberry Pi.
 - `download_models.sh` — downloads CMU Sphinx's en-us acoustic model +
   dictionary directly (needed only on platforms with no prebuilt PocketSphinx
   wheel, i.e. Raspberry Pi's aarch64).
-- `keyword.list` — PocketSphinx keyword-spotting list. Validated working
-  entries: `turn on camera /1e-50/` and `camera /1e-50/`. See "Tuning the
+- `keyword.list` — PocketSphinx keyword-spotting list with `turn on camera`,
+  `turn off camera`, `on camera` and `off camera`. See "Tuning the
   threshold" below for why `/1e-50/`, not the more conservative `/1e-40/` we
   started with.
 - `go.mod` — pure Go stdlib, no third-party dependencies.
@@ -195,8 +201,10 @@ go build -o voice-trigger .
 ```
 
 Say "turn on camera" into the mic and watch for `spotted: ...` in the log.
-Once detection is reliable, drop the `-camera_cmd` override to use the real
-`libcamera-vid` default, or point it at your own capture command.
+Once detection is reliable, follow [the capture/sync runbook](../device-agent/SYNC.md)
+to install and run the default durable recorder. You can also point
+`-camera_cmd` at your existing camera command for a standalone hardware check.
+That custom command only queues data if it invokes the capture wrapper.
 
 ### 7. Keep it running past your SSH session (optional)
 
@@ -207,16 +215,19 @@ tmux new -s voicetrigger
 # Ctrl-b then d to detach; `tmux attach -t voicetrigger` to reattach
 ```
 
-For something more permanent than a foreground/tmux test, run it as a
-systemd service instead — not set up yet, ask if you want it added.
+For automatic startup use `setup_capture_service.sh` and `hardhat-voice.service`,
+as described in [the capture/sync runbook](../device-agent/SYNC.md). Stop the
+foreground/tmux listener before starting the service to free the microphone.
 
 ## Flags
 
 | Flag | Default | Purpose |
 |---|---|---|
 | `-listen_cmd` | `python3 kws_listen.py` | Command whose stdout prints one line per spotted keyphrase |
-| `-camera_cmd` | `libcamera-vid -t 10000 -o /home/pi/clip.h264` | Command to run when the keyphrase is spotted |
-| `-cooldown` | `3s` | Minimum time between triggers |
+| `-camera_cmd` | `/usr/bin/python3 -B /opt/hardhat/device-agent/capture.py` | Record, finalize and queue a unique MP4 clip |
+| `-light_on_cmd` | empty | Optional executable for light-on phrases |
+| `-light_off_cmd` | empty | Optional executable for light-off phrases |
+| `-cooldown` | `3s` | Minimum time between identical actions; camera-off is independent of camera-on |
 
 `kws_listen.py` itself takes `--kws <path>`, `--hmm <path>`, `--dict <path>`,
 and `--verbose`.

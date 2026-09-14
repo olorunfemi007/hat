@@ -74,6 +74,7 @@ export interface Site {
   name: string;
   address: string | null;
   created_at: string;
+  storage_config_id?: string | null;
 }
 
 /**
@@ -92,6 +93,7 @@ export interface Device {
   last_seen_at: string | null;
   display_name: string | null;
   created_at: string;
+  upload_revoked_at?: string | null;
 }
 
 export interface StorageConfig {
@@ -103,6 +105,41 @@ export interface StorageConfig {
   endpoint: string | null;
   credentials_secret_ref: string;
   created_at: string;
+  name: string | null;
+  is_default: boolean;
+  verified_at: string | null;
+  verification_error: string | null;
+  disabled_at: string | null;
+}
+
+export interface Capture {
+  capture_id: string;
+  org_id: string;
+  device_id: string;
+  site_id: string | null;
+  storage_config_id: string;
+  object_key: string;
+  kind: "video" | "audio" | "image" | "sensor";
+  content_type: string;
+  byte_size: number;
+  sha256: string;
+  captured_at: string;
+  status: "queued" | "uploading" | "verified" | "needs_attention";
+  attempts: number;
+  last_error: string | null;
+  verified_at: string | null;
+  provider_version: string | null;
+  created_at: string;
+}
+
+export interface DeviceSyncStatus {
+  device_id: string;
+  org_id: string;
+  queued_count: number;
+  queued_bytes: number;
+  last_contact_at: string;
+  last_verified_at: string | null;
+  last_error: string | null;
 }
 
 /** Row shape returned by the lookup_device_by_claim_code() RPC. */

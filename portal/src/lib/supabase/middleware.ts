@@ -46,6 +46,12 @@ function isPublicRoute(pathname: string): boolean {
  * (it's just whatever's in the client-controllable cookie, unverified).
  */
 export async function updateSession(request: NextRequest) {
+  // This machine endpoint authenticates the Pi's provisioned identity on every
+  // request. Browser sessions are neither required nor accepted as device auth.
+  // Match exactly so this does not make other API routes public.
+  if (request.nextUrl.pathname === "/api/device/sync") {
+    return NextResponse.next({ request });
+  }
   let supabaseResponse = NextResponse.next({ request });
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
