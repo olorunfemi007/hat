@@ -1,5 +1,6 @@
 {
-  "portal_url": "http://localhost:3000",
+  "portal_url": "http://172.20.125.249:3000",
+  "allow_http": true,
   "spool_dir": "/var/lib/hardhat-sync",
   "max_spool_bytes": 2147483648,
   "min_free_bytes": 268435456,
