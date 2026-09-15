@@ -28,8 +28,8 @@ work with `-camera_cmd "echo CAMERA TRIGGERED"`.
 - `download_models.sh` — downloads CMU Sphinx's en-us acoustic model +
   dictionary directly (needed only on platforms with no prebuilt PocketSphinx
   wheel, i.e. Raspberry Pi's aarch64).
-- `keyword.list` — PocketSphinx keyword-spotting list with `turn on camera`,
-  `turn off camera`. Short overlapping aliases are deliberately excluded. See "Tuning the
+- `keyword.list` — PocketSphinx keyword-spotting list with `start camera`,
+  `stop camera`, `start recording`, and `stop recording`. Short overlapping aliases are deliberately excluded. See "Tuning the
   threshold" below for why `/1e-50/`, not the more conservative `/1e-40/` we
   started with.
 - `go.mod` — pure Go stdlib, no third-party dependencies.
@@ -73,7 +73,7 @@ time):
 ```bash
 python3 kws_listen.py --verbose
 ```
-Say "turn on camera" — you should see it printed back. Ctrl-C to stop.
+Say "start camera" — you should see `turn on camera` printed (the internal camera action). Ctrl-C to stop.
 
 Once that works, test the full Go program the same way:
 ```bash
@@ -92,7 +92,8 @@ where `/1e-40/` did not. It is a starting point for your microphone, not a
 universal accuracy setting. Increase the threshold gradually if false matches
 persist, and test both commands against recordings from the actual helmet.
 
-The listener waits for a short silence (roughly 0.3 seconds) before acting.
+A 300 ms audio buffer before detected speech preserves quiet initial consonants
+such as the “st” in “start.” The listener waits for a short silence (roughly 0.3 seconds) before acting.
 It retains all keyword candidates within that speech region, then runs a second
 PocketSphinx pass using a command grammar. That pass compares complete phrases
 against one another instead of detecting each keyword independently. An action
@@ -103,11 +104,16 @@ without a silence between them may be rejected together. Speech longer than
 8 seconds is discarded until silence, and recorder failure cannot execute an
 unfinished phrase.
 
-Use the full **“turn on camera”** and **“turn off camera”** phrases. Do not add
+Use **“start camera”** / **“stop camera”** or **“start recording”** /
+**“stop recording”** with the default keyword list. Do not add
 `camera`, `on camera`, or `off camera`: the listener intentionally ignores those
 fragments. The Go cooldown only limits repeated identical actions; it cannot
 resolve recognition of opposing commands. Optional full light phrases and
-`start recording` / `stop recording` are supported if added to the keyword list.
+`turn on camera` / `turn off camera` are supported if added to the keyword list. Spoken start/stop phrases are
+normalized to the existing internal `turn on camera` / `turn off camera` actions,
+so the Go dispatcher does not need rebuilding. Changing only `keyword.list` is
+not sufficient for a new phrase: it must also exist in `kws_listen.py`’s
+`COMMANDS` map, which supplies the verification grammar.
 This change does not require a light driver.
 
 ### Update an existing Pi installation
@@ -205,7 +211,7 @@ python3 ~/voice-trigger/kws_listen.py --verbose \
     --hmm ~/voice-trigger/models/cmusphinx-en-us-5.2 \
     --dict ~/voice-trigger/models/cmudict.dict
 ```
-Say "turn on camera" — you should see it printed back. Ctrl-C to stop.
+Say "start camera" — you should see `turn on camera` printed (the internal camera action). Ctrl-C to stop.
 
 If the mic doesn't seem to be picking anything up, run `mic_test.py` (needs
 `numpy`, already installed above) to check the raw signal level before
@@ -253,7 +259,7 @@ go build -o voice-trigger .
     -camera_cmd "echo CAMERA TRIGGERED"
 ```
 
-Say "turn on camera" into the mic and watch for `spotted: ...` in the log.
+Say "start camera" into the mic and watch for `spotted: ...` in the log.
 Once detection is reliable, follow [the capture/sync runbook](../device-agent/SYNC.md)
 to install and run the default durable recorder. You can also point
 `-camera_cmd` at your existing camera command for a standalone hardware check.

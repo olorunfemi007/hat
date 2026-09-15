@@ -1,2 +1,4 @@
 start camera /1e-50/
 stop camera /1e-50/
+start recording /1e-50/
+stop recording /1e-50/

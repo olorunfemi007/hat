@@ -1,6 +1,7 @@
 import contextlib
 import io
 import unittest
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -28,6 +29,7 @@ class Decoder:
 
 class Endpointer:
     frame_bytes = 2
+    speech_start = 0
 
     def __init__(self, frames):
         self.frames = iter(frames)
@@ -39,6 +41,37 @@ class Endpointer:
 
 
 class ListenerTests(unittest.TestCase):
+    def test_quiet_onset_is_preserved_before_vad_boundary(self):
+        ep = Endpointer([(False, None), (True, b"bb"), (False, b"cc")])
+        ep.speech_start = 2 / (listener.SAMPLE_RATE * 2)
+        captured = []
+        def recognize(_decoder, pcm, *_args):
+            captured.append(bytes(pcm))
+        with patch.object(listener, "recognize", side_effect=recognize):
+            listener.listen(io.BytesIO(b"aabbcc").read, ep, Decoder([]), lambda _: None)
+        self.assertEqual(captured, [b"aabbcc"])
+
+    def test_default_keywords_are_supported_by_command_grammar(self):
+        keywords = Path(listener.__file__).with_name("keyword.list").read_text()
+        for line in keywords.splitlines():
+            phrase = line.split("/", 1)[0].strip()
+            if phrase:
+                self.assertIn(phrase, listener.COMMANDS)
+
+    def test_start_and_stop_camera_map_to_existing_dispatcher_actions(self):
+        self.assertEqual(self.verify(["start camera"], "start camera"), "turn on camera")
+        self.assertEqual(self.verify(["stop camera"], "stop camera"), "turn off camera")
+        self.assertIsNone(self.verify(["start camera"], "stop camera"))
+        self.assertIsNone(self.verify(["stop camera"], "start camera"))
+        self.assertIsNone(self.verify(["start camera", "stop camera"],
+                                     "start camera stop camera"))
+
+    def test_recording_phrases_map_to_existing_dispatcher_actions(self):
+        self.assertEqual(self.verify(["start recording"], "start recording"), "turn on camera")
+        self.assertEqual(self.verify(["stop recording"], "stop recording"), "turn off camera")
+        self.assertIsNone(self.verify(["start recording"], "stop recording"))
+        self.assertIsNone(self.verify(["stop recording"], "start recording"))
+
     def verify(self, candidates, hypothesis):
         decoder = Decoder([candidates])
         verifier = Decoder([[]])

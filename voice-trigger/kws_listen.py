@@ -10,6 +10,8 @@ import wave
 SAMPLE_RATE = 16000
 MAX_SPEECH_BYTES = SAMPLE_RATE * 2 * 8
 COMMANDS = {
+    "start camera": "turn on camera",
+    "stop camera": "turn off camera",
     "turn on camera": "turn on camera",
     "start recording": "turn on camera",
     "turn off camera": "turn off camera",
@@ -69,14 +71,25 @@ def listen(read, endpointer, decoder, emit, verbose=False, verifier=None):
     command. WAV replay should include the natural silence after the command.
     """
     pcm = bytearray()
+    history = bytearray()
+    total_bytes = 0
     too_long = False
     while True:
         frame = read(endpointer.frame_bytes)
         if len(frame) != endpointer.frame_bytes:
             return
+        total_bytes += len(frame)
+        history.extend(frame)
+        del history[:-SAMPLE_RATE * 2]
         speech = endpointer.process(frame)
         if speech is not None:
             if not too_long:
+                if not pcm:
+                    # VAD can miss quiet initial consonants (e.g. the "st" in
+                    # "start"). Recover 300 ms preceding its speech boundary.
+                    start = round(endpointer.speech_start * SAMPLE_RATE) * 2
+                    origin = total_bytes - len(history)
+                    pcm.extend(history[max(0, start - 9600 - origin):max(0, start - origin)])
                 if len(pcm) + len(speech) > MAX_SPEECH_BYTES:
                     pcm.clear()
                     too_long = True
