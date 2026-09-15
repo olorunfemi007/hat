@@ -1,11 +1,51 @@
 import contextlib
 import io
+import math
+import struct
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
 import kws_listen as listener
+
+
+class HighPassTests(unittest.TestCase):
+    def tone(self, hz):
+        return struct.pack("<16000h", *(round(10000 * math.sin(2 * math.pi * hz * i / 16000))
+                                       for i in range(16000)))
+
+    def test_attenuates_rumble_and_preserves_speech_band(self):
+        def gain(hz):
+            samples = struct.unpack("<16000h", listener.HighPassFilter().process(self.tone(hz)))
+            return math.sqrt(sum(x*x for x in samples[8000:]) / 8000) / (10000 / math.sqrt(2))
+        self.assertLess(gain(30), 0.25)
+        self.assertAlmostEqual(gain(120), 1 / math.sqrt(2), places=2)
+        self.assertGreater(gain(1000), 0.98)
+
+    def test_state_survives_frame_boundaries(self):
+        pcm = self.tone(120)
+        expected = listener.HighPassFilter().process(pcm)
+        filt = listener.HighPassFilter()
+        actual = b"".join(filt.process(pcm[i:i+960]) for i in range(0, len(pcm), 960))
+        self.assertEqual(actual, expected)
+
+    def test_dc_decays_and_extreme_input_does_not_overflow(self):
+        filt = listener.HighPassFilter()
+        pcm = struct.pack("<16000h", *([32767]*8000 + [-32768]*8000))
+        result = struct.unpack("<16000h", filt.process(pcm))
+        self.assertEqual(result[-1], 0)
+        self.assertEqual(result[7999], 0)
+        self.assertTrue(all(-32768 <= x <= 32767 for x in result))
+
+    def test_bypass_is_bit_exact_and_invalid_inputs_fail(self):
+        pcm = self.tone(30)
+        self.assertEqual(listener.HighPassFilter(0).process(pcm), pcm)
+        for cutoff in (-1, 8000, float("nan"), float("inf")):
+            with self.assertRaises(ValueError):
+                listener.HighPassFilter(cutoff)
+        with self.assertRaises(ValueError):
+            listener.HighPassFilter().process(b"x")
 
 
 class Decoder:

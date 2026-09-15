@@ -116,6 +116,27 @@ not sufficient for a new phrase: it must also exist in `kws_listen.py`’s
 `COMMANDS` map, which supplies the verification grammar.
 This change does not require a light driver.
 
+### Low-frequency noise filter
+
+A first-order high-pass filter at **120 Hz** runs before voice activity detection,
+the pre-speech buffer, and both recognition passes. It reduces low-frequency
+rumble and DC offset without additional packages. It keeps two state values
+between frames and processes 16,000 samples per second; no FFT or background
+process is needed. Recorded camera audio is unaffected.
+
+Add `--highpass_hz 0` to the Python listener command to disable it for comparison,
+or `--highpass_hz 100` to set another cutoff. Live input and `--wav` replay use
+the same filter. For the installed service, change `HARDHAT_LISTEN_CMD` in
+`/etc/hardhat/voice-trigger.env` and restart the voice service. The default is
+a starting point, not an industrial-noise calibration: it cannot remove noise
+that overlaps speech frequencies or repair microphone clipping.
+
+Validation covers frequency response, DC removal, full-scale input, continuity
+between audio frames, bypass, and invalid settings. All four generated command
+samples also passed recognition with the filter, both clean and with an added
+60 Hz tone (500 PCM units peak). These are synthetic checks, not factory audio
+or Pi Zero W performance measurements; verify both with the deployed helmet.
+
 ### Update an existing Pi installation
 
 From the updated repository directory on the Pi:

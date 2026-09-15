@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Endpointed PocketSphinx commands. Only finalized, unambiguous speech reaches stdout."""
 import argparse
+from array import array
+import math
 import os
 import signal
 import subprocess
@@ -19,6 +21,39 @@ COMMANDS = {
     "turn on light": "turn on light",
     "turn off light": "turn off light",
 }
+
+
+class HighPassFilter:
+    """Streaming first-order high-pass for mono S16_LE PCM; constant state."""
+
+    def __init__(self, cutoff_hz=120, sample_rate=SAMPLE_RATE):
+        if not math.isfinite(cutoff_hz) or not 0 <= cutoff_hz < sample_rate / 2:
+            raise ValueError("high-pass cutoff must be 0 (disabled) or below half the sample rate")
+        self.enabled = cutoff_hz != 0
+        k = math.tan(math.pi * cutoff_hz / sample_rate)
+        self.gain = 1 / (1 + k)
+        self.feedback = (1 - k) / (1 + k)
+        self.previous_input = self.previous_output = 0.0
+
+    def process(self, pcm):
+        if len(pcm) % 2:
+            raise ValueError("16-bit PCM must contain complete samples")
+        if not self.enabled:
+            return pcm
+        samples = array("h")
+        samples.frombytes(pcm)
+        if sys.byteorder != "little":
+            samples.byteswap()
+        previous_input, previous_output = self.previous_input, self.previous_output
+        gain, feedback = self.gain, self.feedback
+        for i, sample in enumerate(samples):
+            output = gain * (sample - previous_input) + feedback * previous_output
+            previous_input, previous_output = sample, output
+            samples[i] = max(-32768, min(32767, round(output)))
+        self.previous_input, self.previous_output = previous_input, previous_output
+        if sys.byteorder != "little":
+            samples.byteswap()
+        return samples.tobytes()
 
 
 def recognize(decoder, pcm, verbose=False, verifier=None):
@@ -64,7 +99,7 @@ def recognize(decoder, pcm, verbose=False, verifier=None):
     return next(iter(candidates), None)
 
 
-def listen(read, endpointer, decoder, emit, verbose=False, verifier=None):
+def listen(read, endpointer, decoder, emit, verbose=False, verifier=None, audio_filter=None):
     """Decode once per silence-delimited utterance; discard incomplete/long speech.
 
     EOF is not a speech boundary: a failed recorder must not execute a partial
@@ -78,6 +113,8 @@ def listen(read, endpointer, decoder, emit, verbose=False, verifier=None):
         frame = read(endpointer.frame_bytes)
         if len(frame) != endpointer.frame_bytes:
             return
+        if audio_filter is not None:
+            frame = audio_filter.process(frame)
         total_bytes += len(frame)
         history.extend(frame)
         del history[:-SAMPLE_RATE * 2]
@@ -146,7 +183,13 @@ def main():
         help="Have pocketsphinx log its own diagnostics to stderr instead of a hidden log file",
     )
     parser.add_argument("--wav", help="Replay a mono 16-bit 16 kHz WAV instead of the microphone")
+    parser.add_argument("--highpass_hz", type=float, default=120,
+                        help="High-pass cutoff in Hz before speech detection (default: 120; 0 disables)")
     args = parser.parse_args()
+    try:
+        audio_filter = HighPassFilter(args.highpass_hz)
+    except ValueError as error:
+        parser.error(str(error))
 
     if args.list_devices:
         subprocess.run([args.arecord_bin, "-L"], check=True)
@@ -195,7 +238,8 @@ def main():
             if (recording.getnchannels(), recording.getsampwidth(), recording.getframerate(),
                     recording.getcomptype()) != (1, 2, SAMPLE_RATE, "NONE"):
                 sys.exit("WAV must be uncompressed mono 16-bit PCM at 16000 Hz")
-            listen(lambda size: recording.readframes(size // 2), endpointer, decoder, emit, args.verbose, verifier)
+            listen(lambda size: recording.readframes(size // 2), endpointer, decoder, emit,
+                   args.verbose, verifier, audio_filter)
         return
 
     arecord_cmd = [
@@ -215,7 +259,7 @@ def main():
 
     signal.signal(signal.SIGTERM, shutdown)
     try:
-        listen(proc.stdout.read, endpointer, decoder, emit, args.verbose, verifier)
+        listen(proc.stdout.read, endpointer, decoder, emit, args.verbose, verifier, audio_filter)
         sys.exit(f"arecord audio stream ended unexpectedly (rc={proc.poll()})")
     except KeyboardInterrupt:
         pass
