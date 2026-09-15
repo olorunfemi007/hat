@@ -98,7 +98,7 @@ try {
   }
   assert.ok(ready, 'Local test portal ready');
   const data = Buffer.from(JSON.stringify({ temperature_c: 24.5, humidity_percent: 61, schema_version: 1 }));
-  const capture = { capture_id: randomUUID(), captured_at: new Date().toISOString(), kind: 'sensor', content_type: 'application/json', byte_size: data.length, sha256: createHash('sha256').update(data).digest('hex'), metadata: { format_version: 1 } };
+  const capture = { capture_id: randomUUID(), captured_at: new Date().toISOString(), kind: 'sensor', content_type: 'application/json', byte_size: data.length, sha256: createHash('sha256').update(data).digest('hex'), metadata: { format_version: 1, sensor_type: 'dht11', sensor_id: 'test-1' } };
   await machine({ action: 'prepare', device, capture }, 409);
   ok('Untested destination cannot receive captures');
   const adapter = loadTypeScript(path.join(portal, 'src/lib/storage/index.ts'));
@@ -149,7 +149,7 @@ try {
   fs.writeFileSync(path.join(directory, 'device.json'), JSON.stringify({ ...device, supabase_url: dbUrl, publishable_key: env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, allow_http: true }), { mode: 0o600 });
   fs.writeFileSync(path.join(directory, 'serial'), hardware);
   fs.writeFileSync(path.join(directory, 'sync.json'), JSON.stringify({ portal_url: site, allow_http: true, spool_dir: path.join(directory, 'spool'), max_spool_bytes: 268435456, min_free_bytes: 0, retention_hours: 0, timeout_seconds: 30 }));
-  const queueId = python(`import sys,json\nfrom pathlib import Path\nsys.path.insert(0,str(Path(sys.argv[1])/'device-agent'))\nfrom sync import Queue,load_sync_config,utc_now\np=Path(sys.argv[2]);q=Queue(load_sync_config(p/'sync.json'))\nwith q.lock('capture'):\n cid,folder=q.reserve(1024);(folder/'data').write_bytes(b'{"source":"real-pi-queue-test"}');q.finalize(cid,folder,utc_now(),kind='sensor',content_type='application/json')\nq.close();print(json.dumps(cid))`);
+  const queueId = python(`import sys,json\nfrom pathlib import Path\nsys.path.insert(0,str(Path(sys.argv[1])/'device-agent'))\nfrom sync import Queue,load_sync_config,utc_now\np=Path(sys.argv[2]);q=Queue(load_sync_config(p/'sync.json'))\nwith q.lock('capture'):\n cid,folder=q.reserve(1024);(folder/'data').write_bytes(b'{"source":"real-pi-queue-test"}');q.finalize(cid,folder,utc_now(),kind='sensor',content_type='application/json',metadata={'sensor_type':'dht11','sensor_id':'test-1','format_version':1})\nq.close();print(json.dumps(cid))`);
   // A failed attempt persists; a fresh worker process must recover and finish it.
   python(`import sys,json\nfrom pathlib import Path\nsys.path.insert(0,str(Path(sys.argv[1])/'device-agent'))\nfrom sync import Queue,SyncClient,load_sync_config,run_once\nfrom heartbeat import load_config\np=Path(sys.argv[2]);c=load_sync_config(p/'sync.json');q=Queue(c);c['portal_url']='http://127.0.0.1:1';c['timeout_seconds']=1\nrun_once(q,SyncClient(c,load_config(p/'device.json',p/'serial')))\nassert q.due(1e20)['attempts']==1\nassert (q.entries/sys.argv[3]/'data').exists()\nwith q.db:q.db.execute('UPDATE captures SET next_attempt=0')\nq.close();print(json.dumps(True))`, [queueId]);
   const worker = spawnSync('python3', [path.join(root, 'device-agent/sync.py'), '--config', path.join(directory, 'sync.json'), '--identity', path.join(directory, 'device.json'), '--hardware-serial-file', path.join(directory, 'serial'), '--once'], { encoding: 'utf8', timeout: 90000 });
@@ -162,6 +162,53 @@ try {
   const sync = (await api('/rest/v1/device_sync_status?device_id=eq.' + ids.devices[0]))[0];
   assert.equal(sync.queued_count, 0); assert.ok(sync.last_verified_at);
   ok('Real Pi queue survives failed transfer, restarts, verifies, then cleans up and reports status');
+
+  // sensors.py as a real subprocess (not its functions called in-process):
+  // samples through a fake driver, flushes on graceful SIGTERM shutdown, and
+  // the existing sync.py --once picks up and delivers the batch it wrote --
+  // proving the new device-agent module and the 0018 migration actually
+  // interoperate, not just each independently passing their own tests.
+  fs.writeFileSync(path.join(directory, 'fake_driver.py'),
+    'import sensors\n' +
+    'class _Fake:\n' +
+    '    def __init__(self):\n' +
+    '        self.n = 0\n' +
+    '    def read(self):\n' +
+    '        self.n += 1\n' +
+    '        return {"values": {"x": float(self.n)}, "units": {"x": "count"}}\n' +
+    '@sensors.register_driver("faketest")\n' +
+    'def _build(entry):\n' +
+    '    return _Fake()\n');
+  fs.writeFileSync(path.join(directory, 'sensors.json'), JSON.stringify({
+    flush_seconds: 30, sensors: [{ driver: 'faketest', sensor_id: 'e2e-1', sample_interval_seconds: 0.2, rules: [] }],
+  }));
+  const sensorsProc = spawn('python3', [
+    path.join(root, 'device-agent/sensors.py'), '--config', path.join(directory, 'sensors.json'),
+    '--sync-config', path.join(directory, 'sync.json'), '--driver-module', 'fake_driver',
+  ], { cwd: directory, env: { ...process.env, PYTHONPATH: [path.join(root, 'device-agent'), directory].join(path.delimiter) } });
+  let sensorsErr = '';
+  sensorsProc.stderr.on('data', (chunk) => { sensorsErr += chunk; });
+  await new Promise((resolve) => setTimeout(resolve, 1500)); // a handful of 0.2s samples
+  sensorsProc.kill('SIGTERM'); // must flush whatever it sampled before exiting, not drop it
+  const sensorsExit = await new Promise((resolve) => sensorsProc.once('exit', (code) => resolve(code)));
+  assert.equal(sensorsExit, 0, 'sensors.py subprocess: ' + sensorsErr);
+  const sensorsWorker = spawnSync('python3', [path.join(root, 'device-agent/sync.py'), '--config', path.join(directory, 'sync.json'),
+    '--identity', path.join(directory, 'device.json'), '--hardware-serial-file', path.join(directory, 'serial'), '--once'], { encoding: 'utf8', timeout: 90000 });
+  assert.equal(sensorsWorker.status, 0, sensorsWorker.stderr);
+  const sensorCaptures = await api(`/rest/v1/captures?device_id=eq.${ids.devices[0]}&kind=eq.sensor&order=created_at.desc&limit=1`);
+  assert.equal(sensorCaptures.length, 1, 'sensors.py subprocess must have produced exactly one queued batch');
+  const sensorCapture = sensorCaptures[0];
+  assert.equal(sensorCapture.status, 'verified');
+  assert.match(sensorCapture.object_key, /\/sensors\/faketest\/e2e-1\/\d{4}\/\d{2}\/\d{2}\/[0-9a-f-]+\.ndjson$/);
+  const sensorObject = await storage.send(new GetObjectCommand({ Bucket: bucket, Key: sensorCapture.object_key }));
+  const sensorLines = (await sensorObject.Body.transformToString()).trim().split('\n').map((line) => JSON.parse(line));
+  assert.ok(sensorLines.length >= 1);
+  for (const line of sensorLines) {
+    assert.equal(line.sensor_type, 'faketest'); assert.equal(line.sensor_id, 'e2e-1'); assert.equal(line.status, 'ok');
+    assert.equal(line.units.x, 'count');
+  }
+  ok('sensors.py subprocess samples, flushes on shutdown, and syncs to the real sensors/<type>/<id>/ key via the unmodified sync queue');
+
   if (process.argv[3]) {
     const fixture = path.join(directory, 'browser-fixture.json');
     fs.writeFileSync(fixture, JSON.stringify({ site, email, password, org_id: org.id, bucket, device_id: ids.devices[0], capture_id: queueId, config_id: secondConfig.id, ...(testGui ? { storage_endpoint: endpoint, storage_access_key_id: credentials.accessKeyId, storage_secret_access_key: credentials.secretAccessKey } : {}) }), { mode: 0o600 });

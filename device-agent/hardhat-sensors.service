@@ -1,0 +1,30 @@
+[Unit]
+Description=Hard Hat continuous sensor sampling and sync
+Documentation=file:///opt/hardhat/device-agent/SYNC.md
+After=network.target hardhat-device-import.service
+ConditionPathExists=/etc/hardhat/sync.json
+ConditionPathExists=/etc/hardhat/sensors.json
+
+[Service]
+Type=simple
+User=hardhat-heartbeat
+Group=hardhat-heartbeat
+ExecStart=/opt/hardhat/sensors-venv/bin/python3 -B /opt/hardhat/device-agent/sensors.py --config /etc/hardhat/sensors.json --sync-config /etc/hardhat/sync.json
+Restart=on-failure
+RestartSec=15
+RestartPreventExitStatus=78
+TimeoutStopSec=30
+StateDirectory=hardhat-sync
+StateDirectoryMode=0700
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

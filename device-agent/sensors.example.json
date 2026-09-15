@@ -1,0 +1,12 @@
+{
+  "flush_seconds": 300,
+  "sensors": [
+    {
+      "driver": "dht11",
+      "sensor_id": "front-left",
+      "pin": "D4",
+      "sample_interval_seconds": 5,
+      "rules": []
+    }
+  ]
+}
