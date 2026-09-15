@@ -63,6 +63,17 @@ select public.save_storage_connection('00000000-0000-0000-0000-0000000030a1','00
 select pg_temp.assert_true((select status='connected' and revision=3 from public.storage_connections where id='cc000000-0000-4000-8000-000000000003'),'Backend reconnection restores same connection at next revision');
 select pg_temp.assert_true((select count(*)=1 from public.storage_configs where credentials_secret_ref='connection:cc000000-0000-4000-8000-000000000003'),'Backend reconnection preserves destination identity');
 select pg_temp.assert_true((select count(*)=1 from public.storage_connection_events where event='reconnected'),'Backend reconnection writes audit event');
+select public.cancel_storage_connection('00000000-0000-0000-0000-0000000030a1','00000000-0000-0000-0000-0000000000a1','cc000000-0000-4000-8000-000000000001',0);
+select pg_temp.assert_true((select status='cancelled' and revision=1 from public.storage_connections where id='cc000000-0000-4000-8000-000000000001'),'Cancel closes AWS draft and advances revision');
+select pg_temp.assert_true((select count(*)=0 from public.storage_connections where status='pending'),'Cancelled drafts no longer consume pending setup capacity');
+select pg_temp.assert_true((select count(*)=1 from public.storage_connection_events where event='setup_cancelled'),'Cancellation retains audit history');
+select pg_temp.expect_error($q$select public.save_storage_connection('00000000-0000-0000-0000-0000000030a1','00000000-0000-0000-0000-0000000000a1','cc000000-0000-4000-8000-000000000001',1,'{"name":"Audit AWS","provider":"s3","bucket":"audit-bucket","region":"us-east-1","auth_mode":"role","role_arn":"arn:aws:iam::123456789012:role/Test"}','fixture','ciphertext',false)$q$,'22023','Cancelled draft cannot be completed by a stale wizard');
+select pg_temp.expect_error($q$select public.cancel_storage_connection('00000000-0000-0000-0000-0000000030a1','00000000-0000-0000-0000-0000000000a1','cc000000-0000-4000-8000-000000000003',3)$q$,'22023','Cancel cannot disconnect an active connection');
+select pg_temp.expect_error($q$select public.cancel_storage_connection('00000000-0000-0000-0000-0000000030b1','00000000-0000-0000-0000-0000000000b1','cc000000-0000-4000-8000-000000000001',1)$q$,'42501','Cross-organization cancellation is rejected');
+reset role;
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000030a1"}';
+select pg_temp.expect_error($q$select public.cancel_storage_connection('00000000-0000-0000-0000-0000000030a1','00000000-0000-0000-0000-0000000000a1','cc000000-0000-4000-8000-000000000001',1)$q$,'42501','Browser cannot forge cancellation actor');
 reset role;
 select count(*) as connection_assertions_passed from connection_test_results;
 rollback;

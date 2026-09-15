@@ -1,0 +1,118 @@
+import contextlib
+import io
+import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
+
+import kws_listen as listener
+
+
+class Decoder:
+    def __init__(self, results):
+        self.results = iter(results)
+        self.words = []
+        self.starts = self.ends = 0
+
+    def start_utt(self):
+        self.starts += 1
+
+    def process_raw(self, *args):
+        self.words = next(self.results)
+
+    def seg(self):
+        return (SimpleNamespace(word=word) for word in self.words)
+
+    def end_utt(self):
+        self.ends += 1
+
+
+class Endpointer:
+    frame_bytes = 2
+
+    def __init__(self, frames):
+        self.frames = iter(frames)
+        self.in_speech = False
+
+    def process(self, frame):
+        self.in_speech, speech = next(self.frames)
+        return speech
+
+
+class ListenerTests(unittest.TestCase):
+    def verify(self, candidates, hypothesis):
+        decoder = Decoder([candidates])
+        verifier = Decoder([[]])
+        verifier.hyp = lambda: SimpleNamespace(hypstr=hypothesis) if hypothesis else None
+        with contextlib.redirect_stderr(io.StringIO()):
+            result = listener.recognize(decoder, b"00", verifier=verifier)
+        return result
+
+    def test_grammar_resolves_overlapping_keyword_detections(self):
+        for command in ("turn on camera", "turn off camera"):
+            self.assertEqual(self.verify(["turn on camera", "turn off camera"], command), command)
+
+    def test_grammar_cannot_override_keyword_gate(self):
+        self.assertIsNone(self.verify(["turn on camera"], "turn off camera"))
+        self.assertIsNone(self.verify([], "turn on camera"))
+
+    def test_multiple_complete_commands_are_rejected(self):
+        self.assertIsNone(self.verify(["turn on camera", "turn off camera"],
+                                     "turn on camera turn off camera"))
+
+    def test_empty_grammar_result_is_rejected(self):
+        self.assertIsNone(self.verify(["turn on camera"], None))
+
+    def test_transient_opposing_matches_emit_nothing(self):
+        decoder = Decoder([["turn on camera"], ["turn off camera"]])
+        with contextlib.redirect_stderr(io.StringIO()) as log:
+            self.assertIsNone(listener.recognize(decoder, b"\0" * 4096))
+        self.assertIn("ambiguous", log.getvalue())
+        self.assertEqual((decoder.starts, decoder.ends), (1, 1))
+
+    def test_repeated_matches_and_aliases_emit_one_command(self):
+        decoder = Decoder([["turn on camera", "turn on camera", "start recording"]])
+        self.assertEqual(listener.recognize(decoder, b"\0\0"), "turn on camera")
+
+    def test_short_fragments_noise_and_unknown_words_do_not_act(self):
+        for phrase in ("on camera", "off camera", "camera", "<sil>", "hello"):
+            with self.subTest(phrase=phrase):
+                self.assertIsNone(listener.recognize(Decoder([[phrase]]), b"\0\0"))
+
+    def test_separate_on_and_off_utterances_both_execute(self):
+        ep = Endpointer([(True, b"aa"), (False, b"bb"),
+                         (True, b"cc"), (False, b"dd")])
+        decoder = Decoder([["turn on camera"], ["turn off camera"]])
+        commands = []
+        listener.listen(io.BytesIO(b"0" * 8).read, ep, decoder, commands.append)
+        self.assertEqual(commands, ["turn on camera", "turn off camera"])
+        self.assertEqual(decoder.starts, 2)
+
+    def test_no_decoding_before_silence_and_no_partial_command_on_eof(self):
+        ep = Endpointer([(True, b"aa")])
+        decoder = Decoder([])
+        commands = []
+        listener.listen(io.BytesIO(b"00").read, ep, decoder, commands.append)
+        self.assertEqual(commands, [])
+        self.assertEqual(decoder.starts, 0)
+
+    def test_long_speech_is_discarded_then_next_command_works(self):
+        ep = Endpointer([(True, b"1234"), (True, b"56"), (False, b"78"),
+                         (True, b"aa"), (False, b"bb")])
+        decoder = Decoder([["turn off camera"]])
+        commands = []
+        with patch.object(listener, "MAX_SPEECH_BYTES", 4), contextlib.redirect_stderr(io.StringIO()):
+            listener.listen(io.BytesIO(b"0" * 10).read, ep, decoder, commands.append)
+        self.assertEqual(commands, ["turn off camera"])
+        self.assertEqual(decoder.starts, 1)
+
+    def test_final_decoder_matches_are_checked(self):
+        decoder = Decoder([["turn on camera"]])
+        def finish():
+            decoder.words = ["turn off camera"]
+        decoder.end_utt = finish
+        with contextlib.redirect_stderr(io.StringIO()):
+            self.assertIsNone(listener.recognize(decoder, b"00"))
+
+
+if __name__ == "__main__":
+    unittest.main()

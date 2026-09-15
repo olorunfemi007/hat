@@ -32,7 +32,7 @@ function revision(form: FormData) {
 function validDetails(name: string, bucket: string, region: string): string | null {
   if (!name || name.length > 120) return "Enter a destination name of up to 120 characters.";
   if (!/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(bucket) || bucket.includes("..") || /^\d+\.\d+\.\d+\.\d+$/.test(bucket)) return "Enter a valid bucket name.";
-  if (!/^[a-z]{2}(?:-[a-z]+)+-\d$/.test(region)) return "Enter a valid region, e.g. us-east-1.";
+  if (!/^auto$|^[a-z]{2}(?:-[a-z]+)+-\d+$/.test(region)) return "Enter a valid region, e.g. us-east-1, us-west-004 (Backblaze B2), or auto (Cloudflare R2).";
   return null;
 }
 async function connectionFor(ctx: NonNullable<Awaited<ReturnType<typeof adminContext>>>, id: string) {

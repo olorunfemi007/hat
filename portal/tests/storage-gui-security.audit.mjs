@@ -48,6 +48,10 @@ class FakeS3Client {
 }
 const adapter = loadTypeScript(file('lib/storage/index.ts'), {
   '@aws-sdk/client-s3': { ...sdk, S3Client: FakeS3Client },
+  '@aws-sdk/client-sts': { AssumeRoleCommand: class { constructor(input) { this.input = input; } }, STSClient: class {
+    async send(command) { roles.push(command.input.ExternalId); return { Credentials: { AccessKeyId: 'fixture', SecretAccessKey: 'fixture', SessionToken: 'fixture' } }; }
+    destroy() {}
+  } },
   '@aws-sdk/credential-providers': { fromTemporaryCredentials: options => async () => {
     // Deliberately unsafe simulated role: accepts every external ID, including
     // no ID. Setup must detect this instead of certifying this role as safe.
@@ -56,7 +60,7 @@ const adapter = loadTypeScript(file('lib/storage/index.ts'), {
   } },
 });
 let saves = 0, role = 'org_admin';
-const existing = { id: connectionId, name: 'Audit', bucket: 'audit-bucket', region: 'us-east-1', external_id: 'server-generated-unique-external-id', status: 'pending' };
+const existing = { id: connectionId, name: 'Audit', bucket: 'audit-bucket', region: 'us-east-1', external_id: 'server-generated-unique-external-id', status: 'pending', auth_mode: 'role', revision: 0 };
 const query = { select() { return this; }, eq() { return this; }, maybeSingle: async () => ({ data: existing }) };
 const actions = loadTypeScript(file('app/(app)/storage/connections-actions.ts'), {
   'next/cache': { revalidatePath() {} },
@@ -64,6 +68,7 @@ const actions = loadTypeScript(file('app/(app)/storage/connections-actions.ts'),
   '@/lib/supabase/admin': { createAdminSupabaseClient: () => ({ rpc: async () => { saves++; return { data: connectionId }; } }) },
   '@/lib/org-context': { getOrgContext: async () => ({ orgId, userId: 'audit-actor', role }) },
   '@/lib/roles': { canManageStorage: value => value === 'org_admin' },
+  '@/lib/storage/connection-types': loadTypeScript(file('lib/storage/connection-types.ts')),
   '@/lib/storage/policy': loadTypeScript(file('lib/storage/policy.ts')),
   '@/lib/storage/ssrf': loadTypeScript(file('lib/storage/ssrf.ts')),
   '@/lib/storage/crypto': crypto,
@@ -80,8 +85,10 @@ await check('Non-admin connection actions fail before cloud requests or privileg
 });
 await check('AWS setup rejects a role that does not enforce external ID', async () => {
   const result = await actions.saveAwsStorageConnection(form);
-  assert.equal(result.ok, false,
-    `Unsafe role accepted and persisted (${saves} save); ${roles.length} assume-role requests all used the correct ID, with no missing/wrong-ID rejection check.`);
+  assert.equal(result.ok, false);
+  assert.match(result.error, /missing or incorrect external ID/);
+  assert.equal(saves, 0);
+  assert.ok(roles.includes(undefined), 'Must actually attempt assumption without an external ID');
 });
 console.log(JSON.stringify({ checks: results, passed: results.filter(r => r.passed).length, failed: results.filter(r => !r.passed).length }, null, 2));
 process.exitCode = results.some(r => !r.passed) ? 1 : 0;

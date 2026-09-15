@@ -36,7 +36,9 @@ export const ROLE_ARN_PATTERN = /^arn:aws(?:-cn|-us-gov)?:iam::\d{12}:role\/[\w+
 function validateBucketRegion(config: StorageDestination) {
   if (!/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(config.bucket) || config.bucket.includes("..") || /^\d+\.\d+\.\d+\.\d+$/.test(config.bucket)) return invalidConnection();
   const region = config.region || "us-east-1";
-  if (!/^[a-z]{2}(?:-[a-z]+)+-\d$/.test(region)) return invalidConnection();
+  // AWS shape (us-east-1), Backblaze B2's multi-digit shape (us-west-004), or
+  // Cloudflare R2's documented literal region value ("auto").
+  if (!/^auto$|^[a-z]{2}(?:-[a-z]+)+-\d+$/.test(region)) return invalidConnection();
   return region;
 }
 

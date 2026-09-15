@@ -19,8 +19,8 @@ work with `-camera_cmd "echo CAMERA TRIGGERED"`.
   the current command; unknown phrases are ignored. It has no idea
   what CLI flags the listener itself uses — that's deliberate, so swapping
   STT backends later doesn't require touching Go code again.
-- `kws_listen.py` — thin wrapper around pocketsphinx's `LiveSpeech`, printing
-  one flushed line per spotted keyphrase. Accepts `--hmm`/`--dict` overrides
+- `kws_listen.py` — captures through `arecord` and uses PocketSphinx voice
+  activity detection to finish each spoken phrase before accepting one command. Accepts `--hmm`/`--dict` overrides
   for platforms where the bundled model data isn't available (see the Pi
   section below).
 - `mic_test.py` — records a few seconds of audio and prints peak/RMS level,
@@ -29,7 +29,7 @@ work with `-camera_cmd "echo CAMERA TRIGGERED"`.
   dictionary directly (needed only on platforms with no prebuilt PocketSphinx
   wheel, i.e. Raspberry Pi's aarch64).
 - `keyword.list` — PocketSphinx keyword-spotting list with `turn on camera`,
-  `turn off camera`, `on camera` and `off camera`. See "Tuning the
+  `turn off camera`. Short overlapping aliases are deliberately excluded. See "Tuning the
   threshold" below for why `/1e-50/`, not the more conservative `/1e-40/` we
   started with.
 - `go.mod` — pure Go stdlib, no third-party dependencies.
@@ -87,20 +87,73 @@ go build -o voice-trigger .
 exponent, e.g. `1e-50`) is *more* lenient — easier to trigger, more false
 positives. Larger (e.g. `1e-10`) is stricter.
 
-`/1e-40/` produced zero detections in testing even with a clearly healthy
-mic signal; `/1e-50/` worked reliably. Treat `1e-50` as the current known-good
-starting point, not a hard rule — re-tune if you change mic, environment, or
-phrase. Multi-word phrases ("turn on camera") are inherently harder for a
-generic, non-adapted acoustic model to spot than a single distinctive word
-("camera") — if detection is unreliable on the full phrase, that's the first
-thing to simplify.
+The default remains `/1e-50/`, which previously detected speech on the Pi
+where `/1e-40/` did not. It is a starting point for your microphone, not a
+universal accuracy setting. Increase the threshold gradually if false matches
+persist, and test both commands against recordings from the actual helmet.
 
-Note that keeping both `turn on camera` and `camera` in the list means
-saying the full phrase can fire both matches independently (you may see
-`camera` reported once or twice before `turn on camera`) — the Go program's
-`-cooldown` (default 3s) absorbs this so the camera command doesn't
-double-fire, but drop the `camera` line if you only want the full phrase to
-count.
+The listener waits for a short silence (roughly 0.3 seconds) before acting.
+It retains all keyword candidates within that speech region, then runs a second
+PocketSphinx pass using a command grammar. That pass compares complete phrases
+against one another instead of detecting each keyword independently. An action
+requires a single complete command from the grammar that also matched the
+keyword search. Disagreement or multiple recognized commands logs `Rejected
+speech` and does neither; pause and repeat the intended command. Commands spoken
+without a silence between them may be rejected together. Speech longer than
+8 seconds is discarded until silence, and recorder failure cannot execute an
+unfinished phrase.
+
+Use the full **“turn on camera”** and **“turn off camera”** phrases. Do not add
+`camera`, `on camera`, or `off camera`: the listener intentionally ignores those
+fragments. The Go cooldown only limits repeated identical actions; it cannot
+resolve recognition of opposing commands. Optional full light phrases and
+`start recording` / `stop recording` are supported if added to the keyword list.
+This change does not require a light driver.
+
+### Update an existing Pi installation
+
+From the updated repository directory on the Pi:
+
+```bash
+sudo install -m 0644 voice-trigger/kws_listen.py voice-trigger/keyword.list /opt/hardhat/voice-trigger/
+sudo systemctl restart hardhat-voice.service
+sudo journalctl -u hardhat-voice.service -f
+```
+
+This uses the existing service and PocketSphinx 5.1.1 environment. If your
+`HARDHAT_LISTEN_CMD` specifies a custom `--kws` path, update that file as well.
+Say each command separately, leaving a brief silence after it. Expect one
+camera action per accepted phrase.
+
+### Replay microphone recordings and run regression tests
+
+To diagnose accuracy without starting the camera, stop the service temporarily
+and capture a test WAV (substitute your configured ALSA device). Include a second
+of silence before and after each command:
+
+```bash
+sudo systemctl stop hardhat-voice.service
+arecord -D plughw:0,0 -f S16_LE -r 16000 -c 1 -t wav -d 15 /tmp/voice-check.wav
+/opt/hardhat/voice-trigger/venv/bin/python3 /opt/hardhat/voice-trigger/kws_listen.py --wav /tmp/voice-check.wav --verbose
+sudo systemctl start hardhat-voice.service
+```
+
+Replay only prints accepted commands; it does not control the camera. Diagnostics
+go to stderr. The file must be mono, 16-bit, uncompressed PCM at 16 kHz.
+Keep diagnostic recordings private and delete them when finished.
+
+From this repository, run the listener regressions without a microphone or
+PocketSphinx installation:
+
+```bash
+python3 -m unittest discover -s voice-trigger -p 'test_*.py' -v
+```
+
+These cover conflicting/transient matches, repeated detections, separate on/off
+phrases, grammar confirmation and disagreement, ignored fragments, interrupted
+audio, and recovery after long speech.
+Actual recognition accuracy still depends on microphone placement, background
+noise, pronunciation, and threshold calibration.
 
 ## Running on Raspberry Pi OS Lite (headless, over SSH)
 

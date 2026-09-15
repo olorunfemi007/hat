@@ -21,6 +21,7 @@ function readEnv(filename) {
 }
 if (!process.argv[2]) throw new Error('Supply the local MinIO env file.');
 const env = { ...readEnv(path.join(portal, '.env.local')), ...process.env };
+const testGui = process.env.HARDHAT_TEST_GUI === '1';
 const minio = readEnv(process.argv[2]);
 const dbUrl = env.NEXT_PUBLIC_SUPABASE_URL;
 assert.ok(['localhost', '127.0.0.1'].includes(new URL(dbUrl).hostname), 'Local Supabase only');
@@ -75,6 +76,11 @@ try {
   const device = { serial_number: labels[0].serial_number, hardware_serial: hardware, device_identity_secret: labels[0].device_identity_secret };
   const ref = 'integration-' + randomUUID();
   env.HARDHAT_ALLOW_INSECURE_STORAGE = 'true';
+  if (testGui) {
+    env.HARDHAT_STORAGE_PRIVATE_ENDPOINTS = JSON.stringify([endpoint]);
+    env.HARDHAT_STORAGE_ENCRYPTION_KEYS = 'integration:' + randomBytes(32).toString('base64');
+    env.HARDHAT_AWS_TRUST_PRINCIPAL_ARN = 'arn:aws:iam::123456789012:role/LocalTestPrincipal';
+  }
   env.HARDHAT_STORAGE_CREDENTIALS = JSON.stringify({ [ref]: { label: 'Local integration account', org_id: org.id, provider: 'minio', allowed_buckets: [bucket], allowed_endpoints: [endpoint], access_key_id: credentials.accessKeyId, secret_access_key: credentials.secretAccessKey } });
   process.env.HARDHAT_ALLOW_INSECURE_STORAGE = env.HARDHAT_ALLOW_INSECURE_STORAGE;
   process.env.HARDHAT_STORAGE_CREDENTIALS = env.HARDHAT_STORAGE_CREDENTIALS;
@@ -158,13 +164,31 @@ try {
   ok('Real Pi queue survives failed transfer, restarts, verifies, then cleans up and reports status');
   if (process.argv[3]) {
     const fixture = path.join(directory, 'browser-fixture.json');
-    fs.writeFileSync(fixture, JSON.stringify({ site, email, password, org_id: org.id, bucket, device_id: ids.devices[0], capture_id: queueId, config_id: secondConfig.id }), { mode: 0o600 });
-    const result = spawnSync(process.execPath, [path.resolve(process.argv[3]), fixture], { encoding: 'utf8', timeout: 180000 });
+    fs.writeFileSync(fixture, JSON.stringify({ site, email, password, org_id: org.id, bucket, device_id: ids.devices[0], capture_id: queueId, config_id: secondConfig.id, ...(testGui ? { storage_endpoint: endpoint, storage_access_key_id: credentials.accessKeyId, storage_secret_access_key: credentials.secretAccessKey } : {}) }), { mode: 0o600 });
+    const result = spawnSync(process.execPath, [path.resolve(process.argv[3]), fixture], { encoding: 'utf8', timeout: 300000 });
     if (result.status !== 0) throw new Error('Browser verification failed: ' + result.stderr + result.stdout);
     report.browser = JSON.parse(result.stdout.trim());
     ok('Portal storage/captures browser workflow');
   }
-  fs.writeFileSync(path.join(portal, 'audit', 'capture-sync-results.json'), JSON.stringify(report, null, 2));
+  if (testGui) {
+    const managed = (await api('/rest/v1/storage_connections?org_id=eq.' + org.id + '&name=eq.GUI%20lifecycle%20MinIO'))[0];
+    assert.equal(managed.status, 'connected'); assert.equal(managed.revision, 4);
+    const events = await api('/rest/v1/storage_connection_events?connection_id=eq.' + managed.id + '&order=created_at.asc');
+    assert.deepEqual(events.map(event => event.event), ['connected', 'credentials_rotated', 'disconnected', 'reconnected']);
+    const encrypted = (await api('/rest/v1/storage_connection_secrets?connection_id=eq.' + managed.id))[0];
+    assert.ok(encrypted.ciphertext && !encrypted.ciphertext.includes(credentials.secretAccessKey));
+    const managedConfig = (await api('/rest/v1/storage_configs?id=eq.' + managed.config_id))[0];
+    assert.ok(managedConfig.is_default && managedConfig.verified_at);
+    const managedCapture = { ...capture, capture_id: randomUUID() };
+    const permission = await machine({ action: 'prepare', device, capture: managedCapture });
+    assert.equal((await fetch(permission.upload.url, { method: 'PUT', headers: permission.upload.headers, body: data, redirect: 'error' })).status, 200);
+    const receipt = await machine({ action: 'complete', device, capture_id: managedCapture.capture_id });
+    assert.equal(receipt.state, 'verified');
+    const delivered = (await api('/rest/v1/captures?capture_id=eq.' + managedCapture.capture_id))[0];
+    assert.equal(delivered.storage_config_id, managed.config_id);
+    ok('GUI connection lifecycle persists encrypted credentials, audit events, and same destination; device upload verifies after reconnect');
+  }
+  fs.writeFileSync(process.env.HARDHAT_TEST_REPORT || path.join(portal, 'audit', 'capture-sync-results.json'), JSON.stringify(report, null, 2));
   console.log(JSON.stringify({ ok: true, checks: report.checks.length, browser: report.browser }));
 } finally {
   if (server && server.exitCode === null) { server.kill('SIGTERM'); await new Promise((resolve) => { server.once('exit', resolve); setTimeout(resolve, 5000); }); }
@@ -173,6 +197,7 @@ try {
     await api('/rest/v1/captures?org_id=eq.' + ids.org, undefined, undefined, 'DELETE');
     await api('/rest/v1/devices?org_id=eq.' + ids.org, undefined, undefined, 'DELETE');
     await api('/rest/v1/sites?org_id=eq.' + ids.org, undefined, undefined, 'DELETE');
+    await api('/rest/v1/storage_connections?org_id=eq.' + ids.org, undefined, undefined, 'DELETE');
     await api('/rest/v1/storage_configs?org_id=eq.' + ids.org, undefined, undefined, 'DELETE');
     await api('/rest/v1/organizations?id=eq.' + ids.org, undefined, undefined, 'DELETE');
   }

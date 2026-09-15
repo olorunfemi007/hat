@@ -45,6 +45,7 @@ const admin = createClient(url, serviceRoleKey, { auth: { autoRefreshToken: fals
 const email = `storage-conn-test-${randomUUID().slice(0, 8)}@example.test`;
 const password = randomUUID();
 const minioEndpoint = 'http://127.0.0.1:19000';
+process.env.HARDHAT_STORAGE_PRIVATE_ENDPOINTS = JSON.stringify([minioEndpoint]);
 const bucket = `hardhat-conn-test-${randomUUID().slice(0, 8)}`;
 const s3 = new S3Client({ endpoint: minioEndpoint, region: 'us-east-1', forcePathStyle: true,
   credentials: { accessKeyId: 'hardhat-local-test', secretAccessKey: 'S47jbBz8C7Pd0SRUt_JPlxOv2QYSA6IzJhRXzfMvwoJjV4fT' },

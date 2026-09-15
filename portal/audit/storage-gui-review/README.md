@@ -1,5 +1,8 @@
 # Storage GUI implementation test report
 
+Update: the findings below are historical and have since been addressed. See
+[fixes and verification](../storage-gui-fixes/README.md) for the current result.
+
 Tested revision: `ab5433d`. The working tree was clean at the start. This audit
 adds tests and evidence only; it does not fix or modify application behavior.
 

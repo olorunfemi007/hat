@@ -13,10 +13,11 @@ hook until a hardware driver is available.
 
 ## 1. Update the portal
 
-Apply `portal/supabase/migrations/0014_capture_sync.sql` to the same Supabase
-project the portal uses, after migrations 0001–0013. Use your normal migration
-deployment process; do not reset an existing database. This migration has been
-applied to the development database here, not your hosted project.
+Apply migrations `0014_capture_sync.sql`, `0015_storage_connections.sql`, and
+`0016_storage_connection_lifecycle.sql` from `portal/supabase/migrations/` in order,
+after migrations 0001–0013. Skip migrations already applied by your deployment
+process; do not reset an existing database. They are applied to the local
+development database here, not your hosted project.
 
 Install the locked dependencies and deploy the portal:
 
@@ -28,60 +29,65 @@ npm run build
 
 Retain the existing Supabase environment variables, including the server-only
 service-role key. The deployment must serve `/api/device/sync` over HTTPS and
-allow its Node handler up to 120 seconds for storage verification. The video
+allow its Node handler and Storage page actions up to 120 seconds for storage verification. The video
 bytes go directly from the Pi to storage, not through this route. The Pi must
 reach both the portal and the storage endpoint.
 
-## 2. Connect a company storage account once
+## 2. Enable GUI connections once per portal deployment
 
-Get the organization's UUID from Supabase's `organizations` table. Create a
-private S3 bucket or use an existing private MinIO bucket. Configure the server's
-secret environment variable `HARDHAT_STORAGE_CREDENTIALS` as a JSON object.
-Each entry belongs to exactly one organization and explicitly lists its buckets.
+Set `HARDHAT_STORAGE_ENCRYPTION_KEYS` in your hosting platform's secret settings.
+Generate a fresh encryption key locally:
 
-For an AWS workload with its own IAM role:
-
-```json
-{
-  "company-recordings": {
-    "label": "Company AWS account",
-    "org_id": "REPLACE_WITH_ORGANIZATION_UUID",
-    "provider": "s3",
-    "allowed_buckets": ["company-hardhat-recordings"],
-    "use_default_credentials": true
-  }
-}
+```bash
+node -e "console.log('v1:' + require('crypto').randomBytes(32).toString('base64'))"
 ```
 
-For a customer AWS role, replace `use_default_credentials` with `role_arn` and
-`external_id`. Configure that role's trust policy to allow the portal's AWS
-principal with the same external ID, and permit the portal principal to call
-`sts:AssumeRole`. A separate role per customer limits access across companies.
-Static `access_key_id` and `secret_access_key` (plus optional `session_token`)
-are also supported when a workload role is unavailable.
+Keep the result outside the database and source control. It encrypts stored
+service-account credentials; it is never distributed to hats. Back it up in
+your secret manager. For encryption-key rotation, prepend a new `id:key` entry
+and retain old entries until existing connections have been re-encrypted by
+credential replacement. Restart the portal after changing the key list.
 
-For MinIO:
+For AWS, configure the portal's workload identity with permission to assume
+customer roles, and set `HARDHAT_AWS_TRUST_PRINCIPAL_ARN` to that exact calling
+principal's IAM ARN. The wizard displays it in the customer's trust policy.
+These are deployment settings, not per-hat or per-customer edits.
 
-```json
-{
-  "company-minio": {
-    "label": "Company MinIO",
-    "org_id": "REPLACE_WITH_ORGANIZATION_UUID",
-    "provider": "minio",
-    "allowed_buckets": ["hardhat-recordings"],
-    "allowed_endpoints": ["https://storage.example.com"],
-    "access_key_id": "REPLACE_WITH_SERVICE_ACCOUNT_KEY",
-    "secret_access_key": "REPLACE_WITH_SERVICE_ACCOUNT_SECRET"
-  }
-}
-```
+## 3. Connect storage through the GUI
 
-Use a scoped service account, not MinIO root credentials. Endpoints must be
-HTTPS origins without a path, query, or embedded credentials. Save the JSON as
-one environment-variable value and restart/redeploy the portal. Never copy this
-variable or the Supabase service-role key to a Pi or public environment variable.
-The browser receives only the organization's allowed connection names, buckets,
-and endpoints.
+An organization admin opens **Storage → Connect storage**. No organization UUID
+or cloud credential file needs to be installed on a hat.
+
+For **Amazon S3**, enter the name, bucket and region. The wizard saves a pending
+setup with a unique external ID and shows the AWS trust policy. Create the role
+in AWS with that trust policy and the scoped permissions below, then paste its
+role ARN and select **Test and connect**. The portal tests that the role accepts
+the correct external ID and rejects both a missing and an incorrect ID. A timeout
+or other transport failure never counts as proof of rejection.
+
+Use **Finish later** or reload the page to leave the draft available under
+**Storage accounts → Resume setup**. **Cancel setup** closes it on the server and
+frees its pending-setup slot. Canceled drafts cannot be completed by an old tab.
+
+For **MinIO**, enter the name, bucket, region, HTTPS endpoint and restricted
+service-account credentials. Select **Test and connect**. The server verifies
+actual storage access before saving encrypted credentials. Endpoints must be
+origins without paths, queries, fragments or embedded credentials.
+
+MinIO requests resolve and validate DNS, then pin the socket lookup to those
+addresses while preserving TLS hostname verification. Each new operation
+validates again. Private, loopback and reserved addresses are blocked by default.
+For a deliberately private MinIO deployment, the portal operator can approve
+specific origins once using `HARDHAT_STORAGE_PRIVATE_ENDPOINTS`, for example
+`["https://storage.internal.example:9000"]`. The GUI cannot change this allowlist.
+HTTP additionally requires `HARDHAT_ALLOW_INSECURE_STORAGE=true` and is for local
+tests only. Do not broadly approve endpoints or metadata-service addresses.
+
+A successful connection creates a tested delivery destination. Check **Make this
+the default destination** during connection, or use **Use as default** afterward.
+A company connects once for its fleet; new hats inherit the selected destination.
+Legacy `HARDHAT_STORAGE_CREDENTIALS` configurations remain supported for existing
+operator-managed accounts, but are unnecessary for new GUI connections.
 
 ### S3 permissions
 
@@ -99,15 +105,21 @@ role's `kms:GenerateDataKey` / `kms:Decrypt` access as appropriate. Bucket defau
 control storage encryption. The connection test verifies actual write, checksum,
 read, overwrite protection, and cleanup permissions before activation.
 
-## 3. Activate the destination in the portal
+## Manage delivery and connection access
 
 Sign in as an organization admin and open **Storage**:
 
-1. Select the connected account and allowed bucket, give the destination a name,
-   and select the actual bucket region (or MinIO endpoint).
-2. Add the destination, then select **Test connection**.
-3. After the test succeeds, select **Use as default**.
-4. Optionally assign different tested destinations to individual sites.
+1. Use a tested delivery destination as the fleet default.
+2. Optionally assign different tested destinations to individual sites.
+3. Use **Replace credentials** on a storage account to test and save replacement
+   MinIO keys or an updated AWS role. Failed tests preserve the working connection.
+4. **Disconnect** removes stored credentials and disables delivery. **Reconnect**
+   verifies newly supplied credentials and restores the same destination, including
+   pending captures. It does not automatically restore a previous fleet default;
+   select the default checkbox when reconnecting if desired.
+5. Expand **Connection history** for recent connection, replacement and access
+   events, with time and actor account ID. The page loads the latest 100 events;
+   older records remain in `storage_connection_events`.
 
 Devices must already be claimed into this organization. A site override takes
 precedence over the organization default. If an override is paused or invalid,
@@ -167,7 +179,7 @@ Keep the Pi clock synchronized so capture timestamps are accepted.
 Pausing uploads prevents new authorization and completion; an already-issued
 signed URL may remain usable for up to five minutes. Heartbeat stays independent.
 Resume uploads or restore the pinned storage connection to release blocked
-captures. Cloud credential rotation can keep the same connection reference.
+captures. Credential replacement and reconnection retain the same connection reference.
 
 The local spool and identity use restricted filesystem permissions; they are not
 encrypted against physical SD-card access. Remove identities and recordings from
@@ -186,7 +198,7 @@ cd portal
 npm run lint
 npm test
 npm run build
-# Requires local Supabase with migration 0014, MinIO on 127.0.0.1:19000,
+# Requires local Supabase with migrations through 0016, MinIO on 127.0.0.1:19000,
 # and a private env file containing MINIO_ROOT_USER / MINIO_ROOT_PASSWORD:
 node tests/sync-local.integration.mjs /path/to/private/minio.env
 ```
@@ -195,10 +207,15 @@ For the optional browser pass, install `playwright` and `@axe-core/playwright`
 in a separate tooling directory and use an installed Chrome browser:
 
 ```bash
-HARDHAT_BROWSER_MODULES=/path/to/browser-tooling \
+HARDHAT_TEST_GUI=1 HARDHAT_BROWSER_MODULES=/path/to/browser-tooling \
   node tests/sync-local.integration.mjs /path/to/private/minio.env \
-  tests/sync-browser.integration.mjs
+  tests/storage-gui-browser.audit.mjs
 ```
+
+The GUI integration uses a temporary encryption key and approves only the local
+MinIO fixture for that test server. It exercises new connections, failed and
+successful credential replacement, disconnect, reconnect, AWS setup recovery and
+cancellation, then uploads through the reconnected destination.
 
 The browser driver tests both 320px and 1440px layouts in light and dark mode,
 including automated WCAG checks. Screenshots go to a temporary directory unless

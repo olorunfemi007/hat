@@ -7,11 +7,12 @@ import type { ActionResult } from "../sites/actions";
 
 const PROVIDER_LABELS = { s3: "Amazon S3", azure_blob: "Azure Blob Storage", gcs: "Google Cloud Storage", minio: "MinIO" };
 
-export function StorageConfigRow({ config }: { config: StorageConfig }) {
+export function StorageConfigRow({ config, connectionStatus }: { config: StorageConfig; connectionStatus?: string }) {
   const [pending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<ActionResult | null>(null);
   const [operation, setOperation] = useState("");
-  const supported = ["s3", "minio"].includes(config.provider);
+  const managed = config.credentials_secret_ref.startsWith("connection:");
+  const supported = ["s3", "minio"].includes(config.provider) && (!managed || connectionStatus === "connected");
   function run(label: string, action: () => Promise<ActionResult>) {
     setFeedback(null); setOperation(label);
     startTransition(async () => {
@@ -29,14 +30,14 @@ export function StorageConfigRow({ config }: { config: StorageConfig }) {
         </div>
         <span className="role-badge">{config.disabled_at ? "Paused" : config.is_default ? "Fleet default" : config.verified_at ? "Tested" : "Needs a test"}</span>
       </div>
-      {!supported && <p className="text-sm text-neutral-500">Automatic capture delivery for this provider is not available in this release.</p>}
+      {!["s3", "minio"].includes(config.provider) && <p className="text-sm text-neutral-500">Automatic capture delivery for this provider is not available in this release.</p>}
       {config.verified_at && <p className="text-xs text-neutral-500">Delivery verified {new Date(config.verified_at).toLocaleString()}</p>}
       {config.verification_error && <p className="text-sm text-red-600 dark:text-red-400">{config.verification_error}</p>}
       <div className="flex flex-wrap gap-2">
         {supported && !config.disabled_at && <button disabled={pending} className="button-secondary" onClick={() => run("test", () => testStorageConfig(config.id))}>{pending && operation === "test" ? "Testing delivery…" : "Test connection"}</button>}
         {supported && !config.disabled_at && config.verified_at && !config.is_default && <button disabled={pending} className="button-primary" onClick={() => run("default", () => setDefaultStorage(config.id))}>Use as default</button>}
         {supported && <button disabled={pending} className="button-secondary" onClick={() => run("state", () => setStorageEnabled(config.id, Boolean(config.disabled_at)))}>{config.disabled_at ? "Resume" : "Pause"}</button>}
-        <button disabled={pending} className="button-danger" onClick={() => run("remove", () => deleteStorageConfig(config.id))}>Remove</button>
+        {!managed && <button disabled={pending} className="button-danger" onClick={() => run("remove", () => deleteStorageConfig(config.id))}>Remove</button>}
       </div>
       {feedback && <p role="status" className={`text-sm ${feedback.ok ? "text-neutral-500" : "text-red-600 dark:text-red-400"}`}>{feedback.ok ? (operation === "test" ? "Test capture uploaded, verified, and cleaned up successfully." : "Destination updated.") : feedback.error}</p>}
     </li>

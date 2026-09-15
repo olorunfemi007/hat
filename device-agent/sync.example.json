@@ -1,5 +1,5 @@
 {
-  "portal_url": "http://172.20.125.249:3000",
+  "portal_url": "https://portal.yourcompany.com",
   "allow_http": true,
   "spool_dir": "/var/lib/hardhat-sync",
   "max_spool_bytes": 2147483648,
