@@ -192,6 +192,11 @@ class SensorBatcher:
         self.meta_path = self.root / "current.meta.json"
         self.count = 0
         self.batch_start = None
+        # Guards data_path/meta_path/batch_start/count against the one real
+        # race: this sensor's own thread calling append() concurrently with
+        # the main thread's flush_if_due()/close(). It is NOT what makes
+        # sync_queue safe to touch from here -- see the note on _finalize.
+        self._lock = threading.Lock()
         self._recover()
 
     def _recover(self):
@@ -219,7 +224,8 @@ class SensorBatcher:
         now = utcnow()
         if self._due(batch_start, now, self.data_path.stat().st_size):
             LOG.info("%s/%s: finalizing stale batch left from before restart", self.sensor_type, self.sensor_id)
-            self._finalize(batch_start)
+            with self._lock:  # no real concurrency yet (runs in __init__, before any thread starts) -- consistent anyway
+                self._finalize(batch_start)
         else:
             self.batch_start = batch_start
             with self.data_path.open("rb") as stream:
@@ -239,24 +245,31 @@ class SensorBatcher:
         self.count = 0
 
     def append(self, reading_dict):
-        now = utcnow()
-        if self.batch_start is not None and self._due(self.batch_start, now,
-                                                        self.data_path.stat().st_size if self.data_path.exists() else 0):
-            self._finalize(self.batch_start)
-        if self.batch_start is None:
-            if shutil.disk_usage(self.root).free < self.min_free_bytes:
-                LOG.error("%s/%s: local storage below the configured free-space floor; reading dropped",
-                          self.sensor_type, self.sensor_id)
-                return
-            self._begin(now)
-        line = (json.dumps(reading_dict, ensure_ascii=False, separators=(",", ":"), allow_nan=False) + "\n").encode("utf-8")
-        with open(self.data_path, "ab") as stream:
-            stream.write(line)
-            stream.flush()
-            os.fsync(stream.fileno())
-        self.count += 1
+        # Runs on this sensor's own thread. Deliberately never finalizes --
+        # sync_queue's SQLite connection was created on the main thread, and
+        # Python's sqlite3 module rejects any use from another thread outright.
+        # An overdue batch just waits (at most ~1s, the main loop's poll
+        # interval) for flush_if_due() to actually finalize it there instead.
+        with self._lock:
+            now = utcnow()
+            if self.batch_start is None:
+                if shutil.disk_usage(self.root).free < self.min_free_bytes:
+                    LOG.error("%s/%s: local storage below the configured free-space floor; reading dropped",
+                              self.sensor_type, self.sensor_id)
+                    return
+                self._begin(now)
+            line = (json.dumps(reading_dict, ensure_ascii=False, separators=(",", ":"), allow_nan=False) + "\n").encode("utf-8")
+            with open(self.data_path, "ab") as stream:
+                stream.write(line)
+                stream.flush()
+                os.fsync(stream.fileno())
+            self.count += 1
 
     def _finalize(self, batch_start):
+        # Callers MUST already hold self._lock AND be running on the same
+        # thread that created sync_queue (main()'s thread) -- this touches
+        # sync_queue.reserve/finalize/lock, all backed by a sqlite3
+        # connection Python refuses to use from a second thread.
         size = self.data_path.stat().st_size if self.data_path.exists() else 0
         self.batch_start = None
         if size == 0:
@@ -288,13 +301,18 @@ class SensorBatcher:
         LOG.info("%s/%s: batch queued (%d readings, %d bytes)", self.sensor_type, self.sensor_id, reading_count, size)
 
     def flush_if_due(self):
-        if self.batch_start is not None and self._due(self.batch_start, utcnow(), self.data_path.stat().st_size):
-            self._finalize(self.batch_start)
+        """Call only from the main thread (sync_queue's thread) -- see _finalize."""
+        with self._lock:
+            if self.batch_start is not None and self._due(self.batch_start, utcnow(), self.data_path.stat().st_size):
+                self._finalize(self.batch_start)
 
     def close(self):
-        """Best-effort flush on clean shutdown; a crash leaves a recoverable batch."""
-        if self.batch_start is not None:
-            self._finalize(self.batch_start)
+        """Best-effort flush on clean shutdown; a crash leaves a recoverable
+        batch. Call only from the main thread, after every sensor thread that
+        could call append() has already been joined -- see _finalize."""
+        with self._lock:
+            if self.batch_start is not None:
+                self._finalize(self.batch_start)
 
 
 # --------------------------------------------------------------------------
@@ -374,7 +392,11 @@ def run_sensor(driver, sensor_type, sensor_id, interval, rules, batcher, worker,
                                              "field": rule.field, "value": value, "reading": reading})
         try:
             batcher.append(reading)
-        except OSError:
+        except Exception:
+            # Broad on purpose: this loop must survive anything, not just the
+            # OSError a full disk or bad permissions would raise -- an
+            # unanticipated failure here must never silently end sampling
+            # for the rest of the process's life.
             LOG.exception("%s/%s: could not persist reading locally", sensor_type, sensor_id)
         stop.wait(max(0.0, interval - (time.monotonic() - started)))
 

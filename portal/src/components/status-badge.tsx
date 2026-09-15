@@ -9,13 +9,23 @@ const STYLES: Record<DeviceStatus, string> = {
   offline: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300",
 };
 
+// Display text only -- the underlying "active" status value is unchanged
+// (still what's stored and returned by device_heartbeat), this just reads
+// better paired against "Offline" than "Active" does.
+const LABELS: Record<DeviceStatus, string> = {
+  unclaimed: "Unclaimed",
+  claimed: "Claimed",
+  active: "Online",
+  offline: "Offline",
+};
+
 export function StatusBadge({ status }: { status: DeviceStatus }) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium capitalize ${STYLES[status]}`}
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${STYLES[status]}`}
     >
       <span className="status-dot" aria-hidden="true" />
-      {status}
+      {LABELS[status]}
     </span>
   );
 }

@@ -139,6 +139,42 @@ class BatcherDurabilityTests(SensorFixture, unittest.TestCase):
         self.assertIsNone(batcher.batch_start)  # never started a batch
         self.assertIsNone(self.queue.due())
 
+    def test_concurrent_append_and_flush_on_separate_threads_never_crashes(self):
+        # The exact real-hardware failure: append() runs on this sensor's own
+        # thread (like run_sensor); flush_if_due() must run on the thread
+        # that created self.queue (like main()'s poll loop) -- sqlite3
+        # refuses any other thread touching that connection at all. A tiny
+        # flush window forces many real finalize events to land *during*
+        # concurrent appends, not just at a clean, single-threaded shutdown.
+        batcher = self.batcher(flush_seconds=0.05)
+        errors = []
+
+        def sample_loop():
+            try:
+                for _ in range(100):
+                    batcher.append(self.reading())
+                    time.sleep(0.002)
+            except Exception as exc:
+                errors.append(exc)
+
+        sampler = threading.Thread(target=sample_loop)
+        sampler.start()
+        for _ in range(150):
+            batcher.flush_if_due()  # this test method's own thread == self.queue's thread, exactly like main()
+            time.sleep(0.002)
+        sampler.join(timeout=10)
+        self.assertEqual(errors, [], f"append() raised on its own thread: {errors!r}")
+        batcher.close()
+        total_readings = 0
+        while True:
+            row = self.queue.due()
+            if not row:
+                break
+            total_readings += json.loads(row["manifest"])["metadata"]["reading_count"]
+            with self.queue.db:
+                self.queue.db.execute("UPDATE captures SET state='verified' WHERE capture_id=?", (row["capture_id"],))
+        self.assertGreater(total_readings, 0, "concurrent appends must have actually reached the durable queue")
+
     def test_finalize_deferred_on_lock_contention_never_loses_data(self):
         batcher = self.batcher(flush_seconds=300)
         batcher.append(self.reading())
